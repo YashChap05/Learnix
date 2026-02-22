@@ -34,15 +34,16 @@ async function initializeDatabase() {
     pool = mysql.createPool({
       host: 'localhost',
       user: 'root',
-      password: 'your_password', // Change this to your MySQL password
-      database: 'learnix',
+      password: 'Reshma79', // Change this to your MySQL password
+      database: 'world',
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0
     });
 
+    
     const connection = await pool.getConnection();
-    await connection.execute(`
+    /*await connection.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         fullname VARCHAR(255) NOT NULL,
@@ -50,7 +51,9 @@ async function initializeDatabase() {
         password VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `);*/
+
+
     connection.release();
     useMySQL = true;
     console.log('✓ MySQL database initialized successfully');
@@ -81,7 +84,7 @@ app.post('/api/signup', async (req, res) => {
       
       // Check if email already exists
       const [existingUser] = await connection.execute(
-        'SELECT email FROM users WHERE email = ?',
+        'SELECT UserEmailAddress FROM users WHERE UserEmailAddress = ?',
         [email]
       );
 
@@ -162,7 +165,7 @@ app.post('/api/login', async (req, res) => {
       const connection = await pool.getConnection();
       
       const [users] = await connection.execute(
-        'SELECT * FROM users WHERE email = ? AND password = ?',
+        'SELECT * FROM UserLogin WHERE UserEmailAddress = ? AND UserPassword = ?',
         [email, password]
       );
 
@@ -170,6 +173,9 @@ app.post('/api/login', async (req, res) => {
 
       if (users.length === 0) {
         return res.status(401).json({ error: 'Invalid email or password' });
+      } else
+      {
+        console.log('Login successfully');
       }
 
       const user = users[0];
