@@ -34,16 +34,15 @@ async function initializeDatabase() {
     pool = mysql.createPool({
       host: 'localhost',
       user: 'root',
-      password: 'Reshma79', // Change this to your MySQL password
-      database: 'world',
+      password: 'your_password', // Change this to your MySQL password
+      database: 'learnix',
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0
     });
 
-    
     const connection = await pool.getConnection();
-    /*await connection.execute(`
+    await connection.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         fullname VARCHAR(255) NOT NULL,
@@ -51,9 +50,7 @@ async function initializeDatabase() {
         password VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `);*/
-
-
+    `);
     connection.release();
     useMySQL = true;
     console.log('✓ MySQL database initialized successfully');
@@ -84,7 +81,7 @@ app.post('/api/signup', async (req, res) => {
       
       // Check if email already exists
       const [existingUser] = await connection.execute(
-        'SELECT UserEmailAddress FROM UserLogin WHERE UserEmailAddress = ?',
+        'SELECT email FROM users WHERE email = ?',
         [email]
       );
 
@@ -95,7 +92,7 @@ app.post('/api/signup', async (req, res) => {
 
       // Insert user into database
       const [result] = await connection.execute(
-        'INSERT INTO UserLogin (UserName, UserEmailAddress, UserPassword) VALUES (?, ?, ?)',
+        'INSERT INTO users (fullname, email, password) VALUES (?, ?, ?)',
         [fullname, email, password]
       );
 
@@ -105,8 +102,6 @@ app.post('/api/signup', async (req, res) => {
       req.session.userId = result.insertId;
       req.session.fullname = fullname;
       req.session.email = email;
-
-      console.log('New User ID', result.insertId);
 
       res.json({ 
         success: true, 
@@ -167,7 +162,7 @@ app.post('/api/login', async (req, res) => {
       const connection = await pool.getConnection();
       
       const [users] = await connection.execute(
-        'SELECT * FROM UserLogin WHERE UserEmailAddress = ? AND UserPassword = ?',
+        'SELECT * FROM users WHERE email = ? AND password = ?',
         [email, password]
       );
 
@@ -175,22 +170,22 @@ app.post('/api/login', async (req, res) => {
 
       if (users.length === 0) {
         return res.status(401).json({ error: 'Invalid email or password' });
-      } 
+      }
 
       const user = users[0];
 
       // Create session
-      req.session.userId = user.UserID;
-      req.session.fullname = user.UserName;
-      req.session.email = user.UserEmailAddress;
+      req.session.userId = user.id;
+      req.session.fullname = user.fullname;
+      req.session.email = user.email;
 
       res.json({ 
         success: true, 
         message: 'Login successful',
         user: {
-          id: user.UserID,
-          fullname: user.UserName,
-          email: user.UserEmailAddress
+          id: user.id,
+          fullname: user.fullname,
+          email: user.email
         }
       });
     } else {
