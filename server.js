@@ -19,7 +19,7 @@ app.use(session({
   cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
 }));
 
-// In-memory user database (fallback if MySQL is not available)
+
 let users = [];
 let sessions = {};
 
