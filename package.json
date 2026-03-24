@@ -1,18 +1,24 @@
 {
-  "name": "rac",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "learnix",
+  "version": "2.0.0",
+  "description": "Learnix - Modern Remote Learning Platform",
+  "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "db:check": "node scripts/db-check.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Yash Chaphekar",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "body-parser": "^1.20.4",
+    "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "mysql2": "^3.17.1"
+    "multer": "^2.1.1",
+    "mysql2": "^3.17.1",
+    "nodemailer": "^8.0.1"
   }
 }

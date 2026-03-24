@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/dashboard">Dashboard</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions">
+    <a href="/profile" class="sign-in">👤 My Profile</a>
+    <a href="/logout" class="schedule-demo">Sign Out</a>
+  </div>
+</header>
+
+<main>
+  <!-- Welcome hero -->
+  <section class="hero" style="padding-bottom:32px;">
+    <div class="transform-banner"><span>👋 Welcome</span></div>
+    <h1 id="welcomeTitle">
+      Your <span class="journey">Dashboard</span>
+    </h1>
+    <p class="subtitle" id="welcomeUser">Loading your profile...</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <a href="/pages/courses.html" class="get-started-free">Browse Courses</a>
+      <a href="/profile" class="schedule-demo">My Profile</a>
+    </div>
+  </section>
+
+  <!-- ── STUDENT PERFORMANCE SECTION ── -->
+  <section class="dashboard-section" id="studentSection">
+    <div class="dashboard-header">
+      <div>
+        <span class="dashboard-kicker">Student Dashboard</span>
+        <h2>Performance Overview</h2>
+        <p>Track your attendance, marks, and focus areas across enrolled courses.</p>
+      </div>
+      <div class="dashboard-badge" id="studentStatus">Loading...</div>
+    </div>
+    <div id="performanceGrid" class="performance-grid">
+      <div class="performance-card loading">
+        <h3 style="margin:0 0 8px;">Loading performance data...</h3>
+        <p style="color:var(--text-muted);margin:0;font-size:0.9rem;">Please wait.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TEACHER DASHBOARD SECTION ── -->
+  <section class="dashboard-section" id="teacherSection" style="display:none;">
+    <div class="dashboard-header">
+      <div>
+        <span class="dashboard-kicker">Teacher Dashboard</span>
+        <h2>Student Performance</h2>
+        <p>Review attendance and marks for each enrolled student across your courses.</p>
+      </div>
+      <div class="dashboard-badge" id="teacherStatus">Loading...</div>
+    </div>
+
+    <!-- Filters -->
+    <div class="teacher-filters">
+      <label>
+        <span>Course</span>
+        <select id="teacherCourseFilter">
+          <option value="all">All Courses</option>
+        </select>
+      </label>
+      <label>
+        <span>Student Name</span>
+        <input id="teacherNameFilter" type="text" placeholder="Search student...">
+      </label>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="teacher-summary">
+      <div class="teacher-summary-card">
+        <span>Total Students</span>
+        <strong id="teacherStudentCount">0</strong>
+      </div>
+      <div class="teacher-summary-card">
+        <span>Avg Attendance</span>
+        <strong id="teacherAvgAttendance">N/A</strong>
+      </div>
+      <div class="teacher-summary-card">
+        <span>Avg Score</span>
+        <strong id="teacherAvgScore">N/A</strong>
+      </div>
+    </div>
+
+    <!-- Student cards -->
+    <div id="teacherGrid" class="teacher-grid">
+      <div class="teacher-card loading">
+        <h3 style="margin:0;">Loading students...</h3>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="teacher-visuals">
+      <div class="teacher-chart-card">
+        <h3>Top Scores</h3>
+        <div id="scoreChart" class="teacher-bar-chart"></div>
+      </div>
+      <div class="teacher-chart-card">
+        <h3>Attendance Overview</h3>
+        <div id="attendanceChart" class="teacher-bar-chart"></div>
+      </div>
+      <div class="teacher-chart-card">
+        <h3>Average Score</h3>
+        <div id="scoreDonut" class="teacher-donut"></div>
+      </div>
+      <div class="teacher-chart-card">
+        <h3>Average Attendance</h3>
+        <div id="attendanceDonut" class="teacher-donut"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  const fmt = (v, sfx) => (v === null || v === undefined || isNaN(v)) ? 'N/A' : `${v}${sfx || ''}`;
+
+  // ─── Student performance cards ───────────────
+  function renderPerformanceCards(perf) {
+    const grid = document.getElementById('performanceGrid');
+    if (!perf || perf.length === 0) {
+      grid.innerHTML = `
+        <div class="performance-empty">
+          <h3>No performance data yet</h3>
+          <p>Enroll in a course and your attendance and marks will appear here.</p>
+          <a href="/pages/courses.html" class="get-started-free" style="display:inline-block;margin-top:16px;">Browse Courses</a>
+        </div>`;
+      return;
+    }
+    grid.innerHTML = perf.map(item => {
+      const tag = item.score_pct !== null && item.score_pct < 60 ? 'Needs Focus' :
+                  item.attendance_pct !== null && item.attendance_pct < 75 ? 'Attendance Risk' : 'On Track';
+      const tagClass = tag === 'Needs Focus' ? 'needs' : tag === 'Attendance Risk' ? 'risk' : '';
+      const marks = (item.marks_obtained !== null && item.marks_total !== null)
+        ? `${item.marks_obtained} / ${item.marks_total}` : 'N/A';
+      return `
+        <article class="performance-card">
+          <div class="performance-head">
+            <h3>${item.course_name || 'Untitled Course'}</h3>
+            <span class="performance-tag ${tagClass}">${tag}</span>
+          </div>
+          <div class="performance-metrics">
+            <div class="metric-row">
+              <span class="metric-label">Attendance</span>
+              <span class="metric-value">${fmt(item.attendance_pct, '%')}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Marks</span>
+              <span class="metric-value">${marks}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Score</span>
+              <span class="metric-value">${fmt(item.score_pct, '%')}</span>
+            </div>
+          </div>
+          <div class="performance-focus">
+            <span>Focus Area</span>
+            <p>${item.focus_area || 'Keep practicing to improve.'}</p>
+          </div>
+        </article>`;
+    }).join('');
+  }
+
+  // ─── Teacher student cards ───────────────────
+  let teacherCache = [];
+
+  function renderTeacherCards(students) {
+    const grid = document.getElementById('teacherGrid');
+    if (!students || students.length === 0) {
+      grid.innerHTML = `
+        <div class="performance-empty">
+          <h3>No student data yet</h3>
+          <p>Students who enroll in your courses will appear here.</p>
+        </div>`;
+      return;
+    }
+    grid.innerHTML = students.map(s => {
+      const tag = s.score_pct !== null && s.score_pct < 60 ? 'Needs Focus' :
+                  s.attendance_pct !== null && s.attendance_pct < 75 ? 'Attendance Risk' : 'On Track';
+      const tagClass = tag === 'Needs Focus' ? 'needs' : tag === 'Attendance Risk' ? 'risk' : '';
+      const marks = (s.marks_obtained !== null && s.marks_total !== null)
+        ? `${s.marks_obtained} / ${s.marks_total}` : 'N/A';
+      return `
+        <article class="teacher-card">
+          <div class="teacher-card-head">
+            <div>
+              <h3>${s.student_name || 'Student'}</h3>
+              <p>${s.student_email || ''}</p>
+            </div>
+            <span class="performance-tag ${tagClass}">${tag}</span>
+          </div>
+          <div class="teacher-course">${s.course_name || 'Course'}</div>
+          <div class="performance-metrics">
+            <div class="metric-row">
+              <span class="metric-label">Attendance</span>
+              <span class="metric-value">${fmt(s.attendance_pct, '%')}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Marks</span>
+              <span class="metric-value">${marks}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Score</span>
+              <span class="metric-value">${fmt(s.score_pct, '%')}</span>
+            </div>
+          </div>
+        </article>`;
+    }).join('');
+  }
+
+  // ─── Bar chart ───────────────────────────────
+  function renderBarChart(id, rows, valKey, labelKey) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!rows || rows.length === 0) { el.innerHTML = '<div class="chart-empty">No data yet.</div>'; return; }
+    const max = Math.max(...rows.map(r => Number(r[valKey]) || 0), 1);
+    el.innerHTML = rows.map(r => {
+      const v = Number(r[valKey]) || 0;
+      return `
+        <div class="chart-row">
+          <span class="chart-label">${r[labelKey]}</span>
+          <div class="chart-bar"><div class="chart-fill" style="width:${Math.round(v/max*100)}%"></div></div>
+          <span class="chart-value">${v}%</span>
+        </div>`;
+    }).join('');
+  }
+
+  // ─── Donut chart ─────────────────────────────
+  function renderDonut(id, value, label, color) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+    const r = 44, circ = 2 * Math.PI * r, dash = (v / 100) * circ;
+    el.innerHTML = `
+      <div class="donut-wrap">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle class="donut-bg" cx="60" cy="60" r="${r}"/>
+          <circle class="donut-fill" cx="60" cy="60" r="${r}"
+            style="stroke:${color || '#2563eb'};stroke-dasharray:${dash} ${circ};"/>
+        </svg>
+        <div class="donut-center">
+          <strong>${isFinite(value) ? Math.round(v) + '%' : 'N/A'}</strong>
+          <span>${label}</span>
+        </div>
+      </div>`;
+  }
+
+  // ─── Apply teacher filters ───────────────────
+  function applyFilters() {
+    const course = document.getElementById('teacherCourseFilter').value;
+    const name = (document.getElementById('teacherNameFilter').value || '').trim().toLowerCase();
+    let filtered = course === 'all' ? teacherCache : teacherCache.filter(s => s.course_name === course);
+    if (name) filtered = filtered.filter(s => (s.student_name || '').toLowerCase().includes(name));
+    renderTeacherCards(filtered);
+
+    const topScores = filtered.filter(s => isFinite(s.score_pct)).sort((a, b) => b.score_pct - a.score_pct).slice(0, 6)
+      .map(s => ({ label: s.student_name || 'Student', value: Math.round(s.score_pct) }));
+    const topAtt = filtered.filter(s => isFinite(s.attendance_pct)).sort((a, b) => b.attendance_pct - a.attendance_pct).slice(0, 6)
+      .map(s => ({ label: s.student_name || 'Student', value: Math.round(s.attendance_pct) }));
+    renderBarChart('scoreChart', topScores, 'value', 'label');
+    renderBarChart('attendanceChart', topAtt, 'value', 'label');
+  }
+
+  // ─── Load student performance ────────────────
+  async function loadStudentDashboard() {
+    try {
+      const res = await fetch('/api/student-performance', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const perf = Array.isArray(data.performance) ? data.performance : [];
+      document.getElementById('studentStatus').textContent = perf.length === 0 ? 'Awaiting data' : 'Up to date';
+      renderPerformanceCards(perf);
+    } catch (e) {
+      document.getElementById('studentStatus').textContent = 'Unavailable';
+      renderPerformanceCards([]);
+    }
+  }
+
+  // ─── Load teacher dashboard ──────────────────
+  async function loadTeacherDashboard() {
+    const section = document.getElementById('teacherSection');
+    try {
+      const res = await fetch('/api/teacher/students-performance', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      const students = Array.isArray(data.students) ? data.students : [];
+      const summary = data.summary || {};
+      teacherCache = students;
+      section.style.display = 'block';
+
+      // Populate course filter
+      const cf = document.getElementById('teacherCourseFilter');
+      const courses = [...new Set(students.map(s => s.course_name).filter(Boolean))];
+      courses.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        cf.appendChild(opt);
+      });
+      cf.onchange = applyFilters;
+      document.getElementById('teacherNameFilter').oninput = applyFilters;
+
+      document.getElementById('teacherStudentCount').textContent = summary.student_count ?? 0;
+      document.getElementById('teacherAvgAttendance').textContent = summary.avg_attendance_pct != null ? summary.avg_attendance_pct + '%' : 'N/A';
+      document.getElementById('teacherAvgScore').textContent = summary.avg_score_pct != null ? summary.avg_score_pct + '%' : 'N/A';
+      document.getElementById('teacherStatus').textContent = students.length === 0 ? 'Awaiting data' : 'Up to date';
+
+      applyFilters();
+      renderDonut('scoreDonut', summary.avg_score_pct, 'Avg Score', '#2563eb');
+      renderDonut('attendanceDonut', summary.avg_attendance_pct, 'Avg Attendance', '#22c55e');
+    } catch (e) {
+      // Not a teacher or error — hide section
+      section.style.display = 'none';
+    }
+  }
+
+  // ─── Init ────────────────────────────────────
+  async function init() {
+    try {
+      const res = await fetch('/api/me', { credentials: 'same-origin' });
+      if (!res.ok) { window.location.href = '/pages/login.html'; return; }
+      const user = await res.json();
+
+      document.getElementById('welcomeTitle').innerHTML =
+        `Welcome back, <span class="journey">${user.username || 'Learner'}</span>`;
+      document.getElementById('welcomeUser').textContent =
+        `${user.role === 'teacher' ? '👨‍🏫 Teacher' : '🎓 Student'} • ${user.department || user.email}`;
+
+      if (user.role === 'student') {
+        document.getElementById('studentSection').style.display = 'block';
+        loadStudentDashboard();
+      } else if (user.role === 'teacher') {
+        document.getElementById('studentSection').style.display = 'none';
+        loadTeacherDashboard();
+      }
+    } catch (e) {
+      window.location.href = '/pages/login.html';
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

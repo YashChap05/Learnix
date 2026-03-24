@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Courses | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/dashboard">Dashboard</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/pages/about.html">About</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions" id="navActions">
+    <a href="/pages/login.html" class="sign-in">Log In</a>
+    <a href="/pages/signup.html" class="sign-up">Sign Up</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero" style="padding-bottom:24px;">
+    <div class="transform-banner"><span>📘 Explore Our Courses</span></div>
+    <h1>Choose Subjects by <span class="journey">Year</span></h1>
+    <p class="subtitle">
+      Browse year-wise subjects, open a dedicated page for each one, and enroll directly in the subject you want to study.
+    </p>
+  </section>
+
+  <section class="section subject-catalog-section" style="padding-top:0;">
+    <div class="catalog-intro">
+      <h2>Year-Wise Subject Catalog</h2>
+      <p>Each subject opens its own page when you click enroll, so students can go straight into the right course.</p>
+    </div>
+    <div id="subjectCatalog"></div>
+  </section>
+</main>
+
+<section class="cta">
+  <h2>Start Learning Today</h2>
+  <p>Pick your year, open the subject page, and begin learning with Learnix.</p>
+  <a href="/pages/signup.html">Get Started Free →</a>
+</section>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  const SUBJECT_GROUPS = [
+    {
+      title: "First Year",
+      description: "Core subjects for your first-year foundation.",
+      subjects: [
+        { name: "DBMS", slug: "dbms", badge: "Foundation", summary: "Database basics, SQL, normalization, and data modeling." },
+        { name: "Operating Systems", slug: "operating-systems", badge: "Core", summary: "Processes, memory, scheduling, and file systems." },
+        { name: "CT", slug: "ct", badge: "Theory", summary: "Computational thinking, logic building, and structured problem solving." },
+        { name: "Telecommunication", slug: "telecommunication", badge: "Systems", summary: "Signals, communication models, and transmission basics." },
+        { name: "FinTech", slug: "fintech", badge: "Industry", summary: "Digital payments, banking technology, and finance platforms." }
+      ]
+    },
+    {
+      title: "Second Year",
+      description: "Intermediate technical subjects to deepen your skills.",
+      subjects: [
+        { name: "Data Structures", slug: "data-structures", badge: "Coding", summary: "Arrays, trees, graphs, and problem solving." },
+        { name: "Computer Networks", slug: "computer-networks", badge: "Core", summary: "Protocols, routing, switching, and internet basics." },
+        { name: "Java Programming", slug: "java-programming", badge: "Programming", summary: "OOP, collections, exception handling, and apps." },
+        { name: "Software Engineering", slug: "software-engineering", badge: "Project", summary: "SDLC, testing, requirements, and teamwork." },
+        { name: "Digital Electronics", slug: "digital-electronics", badge: "Lab", summary: "Logic gates, circuits, and digital design fundamentals." }
+      ]
+    },
+    {
+      title: "Third Year",
+      description: "Advanced subjects focused on building specialization.",
+      subjects: [
+        { name: "Machine Learning", slug: "machine-learning", badge: "Advanced", summary: "Models, evaluation, features, and practical ML workflows." },
+        { name: "Cloud Computing", slug: "cloud-computing", badge: "Infrastructure", summary: "Cloud services, deployment, storage, and scaling." },
+        { name: "Cyber Security", slug: "cyber-security", badge: "Security", summary: "Threats, protection, secure systems, and awareness." },
+        { name: "Web Technologies", slug: "web-technologies", badge: "Development", summary: "Modern frontend, backend, APIs, and deployment." },
+        { name: "Mobile App Development", slug: "mobile-app-development", badge: "Product", summary: "App UI, architecture, APIs, and mobile workflows." }
+      ]
+    },
+    {
+      title: "Final Year",
+      description: "Capstone and specialization-ready subjects for senior students.",
+      subjects: [
+        { name: "Artificial Intelligence", slug: "artificial-intelligence", badge: "Expert", summary: "Reasoning, search, optimization, and AI applications." },
+        { name: "Big Data Analytics", slug: "big-data-analytics", badge: "Data", summary: "Large-scale data processing, analytics, and pipelines." },
+        { name: "Internet of Things", slug: "internet-of-things", badge: "Embedded", summary: "Sensors, devices, and connected systems." },
+        { name: "Blockchain", slug: "blockchain", badge: "Emerging", summary: "Distributed ledgers, consensus, and smart contract ideas." },
+        { name: "Project Management", slug: "project-management", badge: "Career", summary: "Planning, execution, delivery, and stakeholder coordination." }
+      ]
+    },
+    {
+      title: "Class 12",
+      description: "School-level subjects organized for Class 12 students.",
+      subjects: [
+        { name: "Physics", slug: "physics", badge: "Boards", summary: "Concepts, derivations, numericals, and revision support." },
+        { name: "Chemistry", slug: "chemistry", badge: "Boards", summary: "Organic, inorganic, physical chemistry, and practice." },
+        { name: "Mathematics", slug: "mathematics", badge: "Boards", summary: "Calculus, algebra, vectors, and exam-style problem solving." },
+        { name: "English", slug: "english", badge: "Boards", summary: "Writing, grammar, reading, and literature preparation." },
+        { name: "Computer Science", slug: "computer-science", badge: "Boards", summary: "Programming, SQL, practical prep, and theory revision." }
+      ]
+    }
+  ];
+
+  function subjectUrl(slug) {
+    return "/pages/subject-detail.html?subject=" + slug;
+  }
+
+  function renderCatalog() {
+    const container = document.getElementById("subjectCatalog");
+    container.innerHTML = SUBJECT_GROUPS.map(group => `
+      <section class="subject-group">
+        <div class="subject-group-header">
+          <div>
+            <h3>${group.title}</h3>
+            <p>${group.description}</p>
+          </div>
+        </div>
+        <div class="course-grid">
+          ${group.subjects.map(subject => `
+            <article class="course-card subject-card">
+              <div class="badge">${subject.badge}</div>
+              <h3>${subject.name}</h3>
+              <p>${subject.summary}</p>
+              <div class="course-meta">
+                <span>📚 Dedicated subject page</span>
+                <span>📝 Enrollment available</span>
+              </div>
+              <a href="${subjectUrl(subject.slug)}" class="course-btn">Enroll Now</a>
+              <a href="${subjectUrl(subject.slug)}" class="course-btn sample-btn">Open Subject</a>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+    `).join("");
+  }
+
+  fetch("/api/me", { credentials: "same-origin" })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(user => {
+      currentUser = user;
+      document.getElementById("navActions").innerHTML = `
+        <div class="profile-menu">
+          <button id="profileTrigger" class="profile-trigger" type="button">${user.email || "My Account"}</button>
+          <div id="profileDropdown" class="profile-dropdown">
+            <div class="profile-email">${user.email || ""}</div>
+            <a href="/dashboard" class="profile-item">📊 Dashboard</a>
+            <a href="/profile" class="profile-item">👤 My Profile</a>
+            <a href="/logout" class="profile-item" style="color:#dc2626;">Sign Out</a>
+          </div>
+        </div>
+      `;
+      const trigger = document.getElementById("profileTrigger");
+      const dropdown = document.getElementById("profileDropdown");
+      trigger.addEventListener("click", () => dropdown.classList.toggle("open"));
+      document.addEventListener("click", e => {
+        if (!dropdown.contains(e.target) && e.target !== trigger) dropdown.classList.remove("open");
+      });
+    })
+    .catch(() => { currentUser = null; });
+
+  let currentUser = null;
+  renderCatalog();
+</script>
+</body>
+</html>

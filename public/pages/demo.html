@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedule a Demo | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/pages/about.html">About</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions">
+    <a href="/pages/login.html" class="sign-in">Log In</a>
+    <a href="/pages/signup.html" class="sign-up">Sign Up</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="transform-banner"><span>📅 Book a Session</span></div>
+    <h1>Schedule a <span class="journey">Demo</span></h1>
+    <p class="subtitle">
+      See Learnix in action. Fill in your details and we'll get in touch to set up a
+      personalised walkthrough of the platform.
+    </p>
+
+    <form class="demo-form" id="demoForm">
+      <input type="text" id="demoName" placeholder="Your Full Name" required>
+      <input type="email" id="demoEmail" placeholder="Email Address" required>
+      <input type="tel" id="demoPhone" placeholder="Phone Number (10 digits)" pattern="[0-9]{10}" maxlength="10" required>
+      <select id="demoCourse" required>
+        <option value="" disabled selected>Interested Course</option>
+        <option>Web Development</option>
+        <option>Python Programming</option>
+        <option>Data Science</option>
+        <option>UI / UX Design</option>
+        <option>Other</option>
+      </select>
+      <textarea id="demoMsg" placeholder="Any specific questions or requirements? (optional)" rows="3" style="resize:vertical;"></textarea>
+      <button type="submit">Request Demo →</button>
+    </form>
+
+    <div id="demoStatus" class="status-msg" style="display:none;"></div>
+  </section>
+
+  <!-- What to expect -->
+  <section class="section why-learnix-section" style="margin-top:0;">
+    <div class="why-learnix-header">
+      <h2 style="font-size:1.8rem;font-weight:800;margin:0 0 12px;">What to Expect</h2>
+      <p style="color:var(--text-muted);">Your free demo session includes:</p>
+    </div>
+    <div class="why-learnix-cards" style="max-width:800px;">
+      <div class="why-card">
+        <div class="why-icon why-icon-blue"><span style="font-size:1.5rem;">🎯</span></div>
+        <h3>Platform Walkthrough</h3>
+        <p>A full tour of Learnix — courses, dashboard, performance tracking, and AI tools.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon why-icon-green"><span style="font-size:1.5rem;">💬</span></div>
+        <h3>Live Q&A</h3>
+        <p>Ask anything about our courses, teaching methodology, or technical requirements.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon why-icon-orange"><span style="font-size:1.5rem;">🎁</span></div>
+        <h3>Exclusive Trial Access</h3>
+        <p>Get extended free access to sample videos and course content after your demo.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  document.getElementById('demoForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const status = document.getElementById('demoStatus');
+    const name = document.getElementById('demoName').value.trim();
+    // Simple success simulation
+    status.textContent = `✅ Thanks, ${name}! We'll reach out within 24 hours to schedule your demo.`;
+    status.className = 'status-msg success';
+    status.style.display = 'block';
+    this.reset();
+    setTimeout(() => { status.style.display = 'none'; }, 6000);
+  });
+</script>
+</body>
+</html>

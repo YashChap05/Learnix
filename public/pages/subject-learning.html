@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subject Lessons | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/dashboard">Dashboard</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions" id="navActions">
+    <a href="/pages/login.html" class="sign-in">Log In</a>
+    <a href="/pages/signup.html" class="sign-up">Sign Up</a>
+  </div>
+</header>
+
+<main class="learning-page">
+  <div class="learning-topbar">
+    <a href="#" id="backToSubject" class="subject-back-link">← Back to Subject</a>
+    <div class="learning-meta">
+      <span class="subject-page-badge" id="learningYear">Subject Track</span>
+      <h1 id="learningTitle">Subject Lessons</h1>
+      <p id="learningSubtitle">Choose a chapter from the left to play the lesson and load its AI summary.</p>
+    </div>
+  </div>
+
+  <div class="learning-layout">
+    <aside class="chapters-panel">
+      <div class="chapters-panel-header">
+        <h2>Chapters</h2>
+        <p>10 chapters for now</p>
+      </div>
+      <div id="chapterList" class="chapter-list"></div>
+    </aside>
+
+    <section class="lesson-player-panel">
+      <div class="lesson-player-head">
+        <div>
+          <span class="lesson-kicker" id="chapterNumber">Chapter 1</span>
+          <h2 id="chapterTitle">Lesson Title</h2>
+        </div>
+        <button class="get-started-free" id="generateAiBtn" type="button">Generate AI Summary</button>
+      </div>
+
+      <div class="video-wrapper lesson-video-wrapper">
+        <video id="chapterVideo" controls preload="metadata">
+          <source id="chapterVideoSource" src="" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    </section>
+
+    <aside class="lesson-ai-panel">
+      <div class="subject-panel">
+        <h3>AI Summary</h3>
+        <div id="summaryBox" class="summary-box lesson-summary-box">
+          <div id="summaryText">Select a chapter and click "Generate AI Summary" to load the chapter summary here.</div>
+        </div>
+      </div>
+
+      <div class="subject-panel">
+        <h3>AI Questions</h3>
+        <div id="quizSection">
+          <div id="quizList" class="quiz-list">
+            <div class="quiz-empty">The chapter quiz will appear here after AI generates questions.</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  const SUBJECT_LIBRARY = {
+    "dbms": {
+      name: "DBMS",
+      year: "First Year",
+      chapterVideos: [
+        "/assets/media/dbms/ch1.mp4",
+        "/assets/media/dbms/ch2.mp4",
+        "/assets/media/dbms/ch3.mp4",
+        "/assets/media/dbms/ch4.mp4",
+        "/assets/media/dbms/ch5.mp4",
+        "/assets/media/dbms/ch6.mp4",
+        "/assets/media/dbms/ch7.mp4",
+        "/assets/media/dbms/ch8.mp4",
+        "/assets/media/dbms/ch9.mp4",
+        "/assets/media/dbms/ch10.mp4"
+      ],
+      chapters: [
+        "Introduction to Databases",
+        "ER Models and Schema Design",
+        "Relational Model Basics",
+        "SQL Queries and Clauses",
+        "Joins and Nested Queries",
+        "Normalization Techniques",
+        "Transactions and ACID",
+        "Indexes and Optimization",
+        "Views, Procedures, and Triggers",
+        "DBMS Revision and Practice"
+      ]
+    },
+    "operating-systems": {
+      name: "Operating Systems",
+      year: "First Year",
+      chapterVideos: [
+        "/assets/media/operating-systems/ch1.mp4",
+        "/assets/media/operating-systems/ch2.mp4",
+        "/assets/media/operating-systems/ch3.mp4",
+        "/assets/media/operating-systems/ch4.mp4",
+        "/assets/media/operating-systems/ch5.mp4",
+        "/assets/media/operating-systems/ch6.mp4",
+        "/assets/media/operating-systems/ch7.mp4",
+        "/assets/media/operating-systems/ch8.mp4",
+        "/assets/media/operating-systems/ch9.mp4",
+        "/assets/media/operating-systems/ch10.mp4"
+      ],
+      chapters: [
+        "Introduction to Operating Systems",
+        "Processes and Threads",
+        "CPU Scheduling",
+        "Process Synchronization",
+        "Deadlocks",
+        "Memory Management",
+        "Virtual Memory",
+        "File Systems",
+        "I/O and Device Management",
+        "OS Revision and Practice"
+      ]
+    },
+    "ct": {
+      name: "CT",
+      year: "First Year",
+      chapterVideos: [
+        "/assets/media/ct/ch1.mp4",
+        "/assets/media/ct/ch2.mp4",
+        "/assets/media/ct/ch3.mp4",
+        "/assets/media/ct/ch4.mp4",
+        "/assets/media/ct/ch5.mp4",
+        "/assets/media/ct/ch6.mp4",
+        "/assets/media/ct/ch7.mp4",
+        "/assets/media/ct/ch8.mp4",
+        "/assets/media/ct/ch9.mp4",
+        "/assets/media/ct/ch10.mp4"
+      ],
+      chapters: [
+        "What is Computational Thinking",
+        "Decomposition",
+        "Pattern Recognition",
+        "Abstraction",
+        "Algorithm Design",
+        "Flowcharts",
+        "Pseudocode",
+        "Logical Problem Solving",
+        "Applied CT Exercises",
+        "CT Revision and Practice"
+      ]
+    },
+    "telecommunication": {
+      name: "Telecommunication",
+      year: "First Year",
+      chapterVideos: [
+        "/assets/media/telecommunication/ch1.mp4",
+        "/assets/media/telecommunication/ch2.mp4",
+        "/assets/media/telecommunication/ch3.mp4",
+        "/assets/media/telecommunication/ch4.mp4",
+        "/assets/media/telecommunication/ch5.mp4",
+        "/assets/media/telecommunication/ch6.mp4",
+        "/assets/media/telecommunication/ch7.mp4",
+        "/assets/media/telecommunication/ch8.mp4",
+        "/assets/media/telecommunication/ch9.mp4",
+        "/assets/media/telecommunication/ch10.mp4"
+      ],
+      chapters: [
+        "Introduction to Telecommunication",
+        "Signals and Systems",
+        "Analog Communication",
+        "Digital Communication",
+        "Modulation Techniques",
+        "Transmission Media",
+        "Switching Concepts",
+        "Network Communication Basics",
+        "Telecom Applications",
+        "Telecommunication Revision"
+      ]
+    },
+    "fintech": {
+      name: "FinTech",
+      year: "First Year",
+      chapterVideos: [
+        "/assets/media/fintech/ch1.mp4",
+        "/assets/media/fintech/ch2.mp4",
+        "/assets/media/fintech/ch3.mp4",
+        "/assets/media/fintech/ch4.mp4",
+        "/assets/media/fintech/ch5.mp4",
+        "/assets/media/fintech/ch6.mp4",
+        "/assets/media/fintech/ch7.mp4",
+        "/assets/media/fintech/ch8.mp4",
+        "/assets/media/fintech/ch9.mp4",
+        "/assets/media/fintech/ch10.mp4"
+      ],
+      chapters: [
+        "Introduction to FinTech",
+        "Digital Payments",
+        "Banking Platforms",
+        "Payment Gateways",
+        "Wallet Systems",
+        "Security in FinTech",
+        "Lending and InsurTech",
+        "Data in Finance",
+        "FinTech Product Cases",
+        "FinTech Revision"
+      ]
+    },
+    "data-structures": {
+      name: "Data Structures",
+      year: "Second Year",
+      chapterVideos: [
+        "/assets/media/data-structures/ch1.mp4",
+        "/assets/media/data-structures/ch2.mp4",
+        "/assets/media/data-structures/ch3.mp4",
+        "/assets/media/data-structures/ch4.mp4",
+        "/assets/media/data-structures/ch5.mp4",
+        "/assets/media/data-structures/ch6.mp4",
+        "/assets/media/data-structures/ch7.mp4",
+        "/assets/media/data-structures/ch8.mp4",
+        "/assets/media/data-structures/ch9.mp4",
+        "/assets/media/data-structures/ch10.mp4"
+      ]
+    },
+    "computer-networks": {
+      name: "Computer Networks",
+      year: "Second Year",
+      chapterVideos: [
+        "/assets/media/computer-networks/ch1.mp4",
+        "/assets/media/computer-networks/ch2.mp4",
+        "/assets/media/computer-networks/ch3.mp4",
+        "/assets/media/computer-networks/ch4.mp4",
+        "/assets/media/computer-networks/ch5.mp4",
+        "/assets/media/computer-networks/ch6.mp4",
+        "/assets/media/computer-networks/ch7.mp4",
+        "/assets/media/computer-networks/ch8.mp4",
+        "/assets/media/computer-networks/ch9.mp4",
+        "/assets/media/computer-networks/ch10.mp4"
+      ]
+    },
+    "java-programming": {
+      name: "Java Programming",
+      year: "Second Year",
+      chapterVideos: [
+        "/assets/media/java-programming/ch1.mp4",
+        "/assets/media/java-programming/ch2.mp4",
+        "/assets/media/java-programming/ch3.mp4",
+        "/assets/media/java-programming/ch4.mp4",
+        "/assets/media/java-programming/ch5.mp4",
+        "/assets/media/java-programming/ch6.mp4",
+        "/assets/media/java-programming/ch7.mp4",
+        "/assets/media/java-programming/ch8.mp4",
+        "/assets/media/java-programming/ch9.mp4",
+        "/assets/media/java-programming/ch10.mp4"
+      ]
+    },
+    "software-engineering": {
+      name: "Software Engineering",
+      year: "Second Year",
+      chapterVideos: [
+        "/assets/media/software-engineering/ch1.mp4",
+        "/assets/media/software-engineering/ch2.mp4",
+        "/assets/media/software-engineering/ch3.mp4",
+        "/assets/media/software-engineering/ch4.mp4",
+        "/assets/media/software-engineering/ch5.mp4",
+        "/assets/media/software-engineering/ch6.mp4",
+        "/assets/media/software-engineering/ch7.mp4",
+        "/assets/media/software-engineering/ch8.mp4",
+        "/assets/media/software-engineering/ch9.mp4",
+        "/assets/media/software-engineering/ch10.mp4"
+      ]
+    },
+    "digital-electronics": {
+      name: "Digital Electronics",
+      year: "Second Year",
+      chapterVideos: [
+        "/assets/media/digital-electronics/ch1.mp4",
+        "/assets/media/digital-electronics/ch2.mp4",
+        "/assets/media/digital-electronics/ch3.mp4",
+        "/assets/media/digital-electronics/ch4.mp4",
+        "/assets/media/digital-electronics/ch5.mp4",
+        "/assets/media/digital-electronics/ch6.mp4",
+        "/assets/media/digital-electronics/ch7.mp4",
+        "/assets/media/digital-electronics/ch8.mp4",
+        "/assets/media/digital-electronics/ch9.mp4",
+        "/assets/media/digital-electronics/ch10.mp4"
+      ]
+    },
+    "machine-learning": {
+      name: "Machine Learning",
+      year: "Third Year",
+      chapterVideos: [
+        "/assets/media/machine-learning/ch1.mp4",
+        "/assets/media/machine-learning/ch2.mp4",
+        "/assets/media/machine-learning/ch3.mp4",
+        "/assets/media/machine-learning/ch4.mp4",
+        "/assets/media/machine-learning/ch5.mp4",
+        "/assets/media/machine-learning/ch6.mp4",
+        "/assets/media/machine-learning/ch7.mp4",
+        "/assets/media/machine-learning/ch8.mp4",
+        "/assets/media/machine-learning/ch9.mp4",
+        "/assets/media/machine-learning/ch10.mp4"
+      ]
+    },
+    "cloud-computing": {
+      name: "Cloud Computing",
+      year: "Third Year",
+      chapterVideos: [
+        "/assets/media/cloud-computing/ch1.mp4",
+        "/assets/media/cloud-computing/ch2.mp4",
+        "/assets/media/cloud-computing/ch3.mp4",
+        "/assets/media/cloud-computing/ch4.mp4",
+        "/assets/media/cloud-computing/ch5.mp4",
+        "/assets/media/cloud-computing/ch6.mp4",
+        "/assets/media/cloud-computing/ch7.mp4",
+        "/assets/media/cloud-computing/ch8.mp4",
+        "/assets/media/cloud-computing/ch9.mp4",
+        "/assets/media/cloud-computing/ch10.mp4"
+      ]
+    },
+    "cyber-security": {
+      name: "Cyber Security",
+      year: "Third Year",
+      chapterVideos: [
+        "/assets/media/cyber-security/ch1.mp4",
+        "/assets/media/cyber-security/ch2.mp4",
+        "/assets/media/cyber-security/ch3.mp4",
+        "/assets/media/cyber-security/ch4.mp4",
+        "/assets/media/cyber-security/ch5.mp4",
+        "/assets/media/cyber-security/ch6.mp4",
+        "/assets/media/cyber-security/ch7.mp4",
+        "/assets/media/cyber-security/ch8.mp4",
+        "/assets/media/cyber-security/ch9.mp4",
+        "/assets/media/cyber-security/ch10.mp4"
+      ]
+    },
+    "web-technologies": {
+      name: "Web Technologies",
+      year: "Third Year",
+      chapterVideos: [
+        "/assets/media/web-technologies/ch1.mp4",
+        "/assets/media/web-technologies/ch2.mp4",
+        "/assets/media/web-technologies/ch3.mp4",
+        "/assets/media/web-technologies/ch4.mp4",
+        "/assets/media/web-technologies/ch5.mp4",
+        "/assets/media/web-technologies/ch6.mp4",
+        "/assets/media/web-technologies/ch7.mp4",
+        "/assets/media/web-technologies/ch8.mp4",
+        "/assets/media/web-technologies/ch9.mp4",
+        "/assets/media/web-technologies/ch10.mp4"
+      ]
+    },
+    "mobile-app-development": {
+      name: "Mobile App Development",
+      year: "Third Year",
+      chapterVideos: [
+        "/assets/media/mobile-app-development/ch1.mp4",
+        "/assets/media/mobile-app-development/ch2.mp4",
+        "/assets/media/mobile-app-development/ch3.mp4",
+        "/assets/media/mobile-app-development/ch4.mp4",
+        "/assets/media/mobile-app-development/ch5.mp4",
+        "/assets/media/mobile-app-development/ch6.mp4",
+        "/assets/media/mobile-app-development/ch7.mp4",
+        "/assets/media/mobile-app-development/ch8.mp4",
+        "/assets/media/mobile-app-development/ch9.mp4",
+        "/assets/media/mobile-app-development/ch10.mp4"
+      ]
+    },
+    "artificial-intelligence": {
+      name: "Artificial Intelligence",
+      year: "Final Year",
+      chapterVideos: [
+        "/assets/media/artificial-intelligence/ch1.mp4",
+        "/assets/media/artificial-intelligence/ch2.mp4",
+        "/assets/media/artificial-intelligence/ch3.mp4",
+        "/assets/media/artificial-intelligence/ch4.mp4",
+        "/assets/media/artificial-intelligence/ch5.mp4",
+        "/assets/media/artificial-intelligence/ch6.mp4",
+        "/assets/media/artificial-intelligence/ch7.mp4",
+        "/assets/media/artificial-intelligence/ch8.mp4",
+        "/assets/media/artificial-intelligence/ch9.mp4",
+        "/assets/media/artificial-intelligence/ch10.mp4"
+      ]
+    },
+    "big-data-analytics": {
+      name: "Big Data Analytics",
+      year: "Final Year",
+      chapterVideos: [
+        "/assets/media/big-data-analytics/ch1.mp4",
+        "/assets/media/big-data-analytics/ch2.mp4",
+        "/assets/media/big-data-analytics/ch3.mp4",
+        "/assets/media/big-data-analytics/ch4.mp4",
+        "/assets/media/big-data-analytics/ch5.mp4",
+        "/assets/media/big-data-analytics/ch6.mp4",
+        "/assets/media/big-data-analytics/ch7.mp4",
+        "/assets/media/big-data-analytics/ch8.mp4",
+        "/assets/media/big-data-analytics/ch9.mp4",
+        "/assets/media/big-data-analytics/ch10.mp4"
+      ]
+    },
+    "internet-of-things": {
+      name: "Internet of Things",
+      year: "Final Year",
+      chapterVideos: [
+        "/assets/media/internet-of-things/ch1.mp4",
+        "/assets/media/internet-of-things/ch2.mp4",
+        "/assets/media/internet-of-things/ch3.mp4",
+        "/assets/media/internet-of-things/ch4.mp4",
+        "/assets/media/internet-of-things/ch5.mp4",
+        "/assets/media/internet-of-things/ch6.mp4",
+        "/assets/media/internet-of-things/ch7.mp4",
+        "/assets/media/internet-of-things/ch8.mp4",
+        "/assets/media/internet-of-things/ch9.mp4",
+        "/assets/media/internet-of-things/ch10.mp4"
+      ]
+    },
+    "blockchain": {
+      name: "Blockchain",
+      year: "Final Year",
+      chapterVideos: [
+        "/assets/media/blockchain/ch1.mp4",
+        "/assets/media/blockchain/ch2.mp4",
+        "/assets/media/blockchain/ch3.mp4",
+        "/assets/media/blockchain/ch4.mp4",
+        "/assets/media/blockchain/ch5.mp4",
+        "/assets/media/blockchain/ch6.mp4",
+        "/assets/media/blockchain/ch7.mp4",
+        "/assets/media/blockchain/ch8.mp4",
+        "/assets/media/blockchain/ch9.mp4",
+        "/assets/media/blockchain/ch10.mp4"
+      ]
+    },
+    "project-management": {
+      name: "Project Management",
+      year: "Final Year",
+      chapterVideos: [
+        "/assets/media/project-management/ch1.mp4",
+        "/assets/media/project-management/ch2.mp4",
+        "/assets/media/project-management/ch3.mp4",
+        "/assets/media/project-management/ch4.mp4",
+        "/assets/media/project-management/ch5.mp4",
+        "/assets/media/project-management/ch6.mp4",
+        "/assets/media/project-management/ch7.mp4",
+        "/assets/media/project-management/ch8.mp4",
+        "/assets/media/project-management/ch9.mp4",
+        "/assets/media/project-management/ch10.mp4"
+      ]
+    },
+    "physics": {
+      name: "Physics",
+      year: "Class 12",
+      chapterVideos: [
+        "/assets/media/physics/ch1.mp4",
+        "/assets/media/physics/ch2.mp4",
+        "/assets/media/physics/ch3.mp4",
+        "/assets/media/physics/ch4.mp4",
+        "/assets/media/physics/ch5.mp4",
+        "/assets/media/physics/ch6.mp4",
+        "/assets/media/physics/ch7.mp4",
+        "/assets/media/physics/ch8.mp4",
+        "/assets/media/physics/ch9.mp4",
+        "/assets/media/physics/ch10.mp4"
+      ]
+    },
+    "chemistry": {
+      name: "Chemistry",
+      year: "Class 12",
+      chapterVideos: [
+        "/assets/media/chemistry/ch1.mp4",
+        "/assets/media/chemistry/ch2.mp4",
+        "/assets/media/chemistry/ch3.mp4",
+        "/assets/media/chemistry/ch4.mp4",
+        "/assets/media/chemistry/ch5.mp4",
+        "/assets/media/chemistry/ch6.mp4",
+        "/assets/media/chemistry/ch7.mp4",
+        "/assets/media/chemistry/ch8.mp4",
+        "/assets/media/chemistry/ch9.mp4",
+        "/assets/media/chemistry/ch10.mp4"
+      ]
+    },
+    "mathematics": {
+      name: "Mathematics",
+      year: "Class 12",
+      chapterVideos: [
+        "/assets/media/mathematics/ch1.mp4",
+        "/assets/media/mathematics/ch2.mp4",
+        "/assets/media/mathematics/ch3.mp4",
+        "/assets/media/mathematics/ch4.mp4",
+        "/assets/media/mathematics/ch5.mp4",
+        "/assets/media/mathematics/ch6.mp4",
+        "/assets/media/mathematics/ch7.mp4",
+        "/assets/media/mathematics/ch8.mp4",
+        "/assets/media/mathematics/ch9.mp4",
+        "/assets/media/mathematics/ch10.mp4"
+      ]
+    },
+    "english": {
+      name: "English",
+      year: "Class 12",
+      chapterVideos: [
+        "/assets/media/english/ch1.mp4",
+        "/assets/media/english/ch2.mp4",
+        "/assets/media/english/ch3.mp4",
+        "/assets/media/english/ch4.mp4",
+        "/assets/media/english/ch5.mp4",
+        "/assets/media/english/ch6.mp4",
+        "/assets/media/english/ch7.mp4",
+        "/assets/media/english/ch8.mp4",
+        "/assets/media/english/ch9.mp4",
+        "/assets/media/english/ch10.mp4"
+      ]
+    },
+    "computer-science": {
+      name: "Computer Science",
+      year: "Class 12",
+      chapterVideos: [
+        "/assets/media/computer-science/ch1.mp4",
+        "/assets/media/computer-science/ch2.mp4",
+        "/assets/media/computer-science/ch3.mp4",
+        "/assets/media/computer-science/ch4.mp4",
+        "/assets/media/computer-science/ch5.mp4",
+        "/assets/media/computer-science/ch6.mp4",
+        "/assets/media/computer-science/ch7.mp4",
+        "/assets/media/computer-science/ch8.mp4",
+        "/assets/media/computer-science/ch9.mp4",
+        "/assets/media/computer-science/ch10.mp4"
+      ]
+    }
+  };
+
+  const subjectKey = new URLSearchParams(window.location.search).get("subject");
+  const lessonData = SUBJECT_LIBRARY[subjectKey];
+  const fallbackChapters = Array.from({ length: 10 }, (_, index) => `Chapter ${index + 1}`);
+  let selectedChapter = 0;
+
+  function getChapterList() {
+    const base = (lessonData && Array.isArray(lessonData.chapters) && lessonData.chapters.length > 0)
+      ? lessonData.chapters
+      : fallbackChapters.map((_, index) => `${lessonData ? lessonData.name : "Subject"} Chapter ${index + 1}`);
+    return base.slice(0, 10);
+  }
+
+  function chapterVideoUrl() {
+    if (lessonData && Array.isArray(lessonData.chapterVideos) && lessonData.chapterVideos[selectedChapter]) {
+      return lessonData.chapterVideos[selectedChapter];
+    }
+    return "/assets/media/Web_dev.mp4";
+  }
+
+  function chapterPrompt(chapterName) {
+    const safeSubject = lessonData ? lessonData.name : "Subject";
+    return chapterVideoUrl() + `?subject=${encodeURIComponent(safeSubject)}&chapter=${encodeURIComponent(chapterName)}`;
+  }
+
+  function renderAuth() {
+    fetch('/api/me', { credentials: 'same-origin' })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(user => {
+        document.getElementById('navActions').innerHTML = `
+          <div class="profile-menu">
+            <button id="profileTrigger" class="profile-trigger" type="button">${user.email || 'My Account'}</button>
+            <div id="profileDropdown" class="profile-dropdown">
+              <div class="profile-email">${user.email || ''}</div>
+              <a href="/dashboard" class="profile-item">Dashboard</a>
+              <a href="/profile" class="profile-item">My Profile</a>
+              <a href="/logout" class="profile-item" style="color:#dc2626;">Sign Out</a>
+            </div>
+          </div>
+        `;
+        const trigger = document.getElementById('profileTrigger');
+        const dropdown = document.getElementById('profileDropdown');
+        trigger.addEventListener('click', () => dropdown.classList.toggle('open'));
+        document.addEventListener('click', e => {
+          if (!dropdown.contains(e.target) && e.target !== trigger) dropdown.classList.remove('open');
+        });
+      })
+      .catch(() => {});
+  }
+
+  function renderPageShell() {
+    if (!lessonData) {
+      document.getElementById("learningTitle").textContent = "Subject Lessons Not Found";
+      document.getElementById("learningSubtitle").textContent = "Please return to the subject page and choose a valid subject.";
+      return;
+    }
+
+    document.title = lessonData.name + " Lessons | Learnix";
+    document.getElementById("learningYear").textContent = lessonData.year;
+    document.getElementById("learningTitle").textContent = lessonData.name + " Lessons";
+    document.getElementById("learningSubtitle").textContent = "Pick any chapter from the left column to play the lesson and generate AI notes.";
+    document.getElementById("backToSubject").href = "/pages/subject-detail.html?subject=" + subjectKey;
+  }
+
+  function renderChapters() {
+    const chapters = getChapterList();
+    const chapterList = document.getElementById("chapterList");
+    chapterList.innerHTML = chapters.map((chapter, index) => `
+      <button class="chapter-item ${index === selectedChapter ? 'active' : ''}" type="button" data-index="${index}">
+        <span class="chapter-index">Chapter ${index + 1}</span>
+        <strong>${chapter}</strong>
+      </button>
+    `).join("");
+
+    [...chapterList.querySelectorAll(".chapter-item")].forEach(button => {
+      button.addEventListener("click", () => {
+        selectedChapter = Number(button.dataset.index || 0);
+        updateSelectedChapter();
+      });
+    });
+  }
+
+  function updateSelectedChapter() {
+    const chapters = getChapterList();
+    const currentChapter = chapters[selectedChapter] || chapters[0];
+    document.getElementById("chapterNumber").textContent = "Chapter " + (selectedChapter + 1);
+    document.getElementById("chapterTitle").textContent = currentChapter;
+    document.getElementById("chapterVideoSource").src = chapterVideoUrl();
+    const video = document.getElementById("chapterVideo");
+    video.load();
+    document.getElementById("summaryText").innerHTML = `<p>Select AI generation to get the summary for <strong>${currentChapter}</strong>.</p>`;
+    document.getElementById("quizList").innerHTML = `<div class="quiz-empty">Questions for <strong>${currentChapter}</strong> will appear here after AI runs.</div>`;
+    renderChapters();
+  }
+
+  async function generateChapterAI() {
+    const btn = document.getElementById("generateAiBtn");
+    const summaryText = document.getElementById("summaryText");
+    const quizList = document.getElementById("quizList");
+    const chapters = getChapterList();
+    const currentChapter = chapters[selectedChapter] || chapters[0];
+
+    btn.textContent = "Generating...";
+    btn.disabled = true;
+    summaryText.innerHTML = `<p>Loading AI summary for <strong>${currentChapter}</strong>...</p>`;
+    quizList.innerHTML = `<div class="quiz-empty">Generating questions for ${currentChapter}...</div>`;
+
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoUrl: chapterPrompt(currentChapter),
+          maxQuestions: 5
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate AI summary');
+
+      summaryText.innerHTML = data.summary_html || ('<p>' + (data.summary || 'No summary available.') + '</p>');
+
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        quizList.innerHTML = data.questions.map((q, i) => `
+          <div class="quiz-item" onclick="this.classList.toggle('open')">
+            <div class="q">Q${i + 1}. ${q.question}</div>
+            <div class="a">Answer: ${q.answer}</div>
+          </div>
+        `).join('');
+      } else {
+        quizList.innerHTML = `<div class="quiz-empty">No AI questions were returned for this chapter.</div>`;
+      }
+
+      btn.textContent = "Refresh AI Summary";
+    } catch (error) {
+      summaryText.innerHTML = `<p style="color:#dc2626;">${error.message}</p>`;
+      quizList.innerHTML = `<div class="quiz-empty">Unable to load quiz questions right now.</div>`;
+      btn.textContent = "Try Again";
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById("generateAiBtn").addEventListener("click", generateChapterAI);
+  renderAuth();
+  renderPageShell();
+  renderChapters();
+  updateSelectedChapter();
+</script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/dashboard">Dashboard</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions">
+    <a href="/logout" class="schedule-demo">Sign Out</a>
+  </div>
+</header>
+
+<main>
+  <div class="profile-page">
+    <div class="profile-card" id="profileCard">
+      <div style="color:var(--text-muted);padding:20px 0;">Loading profile...</div>
+    </div>
+
+    <div style="margin-top:32px;display:none;" id="enrolledSection">
+      <h2 style="font-size:1.3rem;font-weight:800;margin:0 0 16px;">My Enrolled Courses</h2>
+      <div id="enrolledCourses" class="courses-grid"></div>
+    </div>
+  </div>
+</main>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  function addEnrolledFlag(url) {
+    return url + (url.includes('?') ? '&' : '?') + 'enrolled=1';
+  }
+
+  async function init() {
+    try {
+      const res = await fetch('/api/me', { credentials: 'same-origin' });
+      if (!res.ok) {
+        window.location.href = '/pages/login.html';
+        return;
+      }
+
+      const user = await res.json();
+      const initials = (user.username || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      const card = document.getElementById('profileCard');
+
+      card.innerHTML = `
+        <div class="profile-avatar">${initials}</div>
+        <h2>${user.username || 'User'}</h2>
+        <span class="profile-role">${user.role === 'teacher' ? 'Teacher' : 'Student'}</span>
+        <div class="profile-fields">
+          <div class="profile-field">
+            <label>Full Name</label>
+            <span>${user.username || '-'}</span>
+          </div>
+          <div class="profile-field">
+            <label>Email Address</label>
+            <span>${user.email || '-'}</span>
+          </div>
+          <div class="profile-field">
+            <label>Phone Number</label>
+            <span>${user.phone_no || '-'}</span>
+          </div>
+          <div class="profile-field">
+            <label>Department</label>
+            <span>${user.department || '-'}</span>
+          </div>
+          <div class="profile-field">
+            <label>Role</label>
+            <span style="text-transform:capitalize;">${user.role || '-'}</span>
+          </div>
+        </div>
+        <div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap;">
+          <a href="/dashboard" class="get-started-free">Go to Dashboard</a>
+          <a href="/pages/courses.html" class="schedule-demo">Browse Courses</a>
+        </div>
+      `;
+
+      if (user.role === 'student') {
+        const coursesRes = await fetch('/api/my-courses', { credentials: 'same-origin' });
+        const coursesData = await coursesRes.json();
+        const courses = Array.isArray(coursesData.courses) ? coursesData.courses : [];
+        const section = document.getElementById('enrolledSection');
+        const grid = document.getElementById('enrolledCourses');
+
+        if (courses.length > 0) {
+          section.style.display = 'block';
+          grid.innerHTML = courses.map(c => `
+            <article class="course-detail-card">
+              <h4>${c.course_name || 'Course'}</h4>
+              <p><strong>Credits:</strong> ${c.credits ?? 'N/A'}</p>
+              <p><strong>Department:</strong> ${c.dept_name || 'N/A'}</p>
+              <p><strong>Teacher:</strong> ${c.teacher_name || 'N/A'}</p>
+              <p><strong>Enrolled:</strong> ${c.enrollment_date ? new Date(c.enrollment_date).toLocaleDateString() : 'N/A'}</p>
+              <a class="course-open-btn" href="${addEnrolledFlag(c.video_path || '/pages/courses.html')}">Open Course →</a>
+            </article>
+          `).join('');
+        }
+      }
+    } catch (e) {
+      window.location.href = '/pages/login.html';
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/pages/about.html">About</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions">
+    <a href="/pages/login.html" class="sign-in">Log In</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="transform-banner"><span>Join Our Community 🎓</span></div>
+    <h1>Create Your <span class="journey">Learnix</span> <span class="today">Account</span></h1>
+    <p class="subtitle">Start your free learning journey today. No credit card required.</p>
+
+    <form id="signupForm" class="demo-form" action="/signup" method="post">
+      <input type="text" name="username" placeholder="Full Name" required>
+      <input type="email" name="email" id="signupEmail" placeholder="Email Address" required>
+      <input type="tel" name="phone_no" placeholder="Phone Number (10 digits)" pattern="[0-9]{10}" minlength="10" maxlength="10" required>
+
+      <select name="role" id="roleSelect" required>
+        <option value="" disabled selected>Select Role</option>
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+      </select>
+
+      <input type="text" name="department" id="deptInput" placeholder="Department" required>
+      <datalist id="deptList"></datalist>
+
+      <input type="password" name="password" placeholder="Password (min. 6 characters)" minlength="6" required>
+      <input type="password" name="confirmPassword" placeholder="Confirm Password" required>
+
+      <button type="button" id="sendOtpBtn" class="get-started-free" style="background:var(--green); opacity:0.5; cursor:not-allowed;" disabled title="OTP verification is optional in development mode">
+        Send 5-Digit OTP to Email (Optional)
+      </button>
+
+      <input type="text" id="otpInput" placeholder="Enter 5-digit OTP from your email (Optional)" pattern="[0-9]{5}" maxlength="5">
+
+      <button type="button" id="verifyOtpBtn" class="get-started-free" style="background:#7c3aed; opacity:0.5; cursor:not-allowed;" disabled title="OTP verification is optional in development mode">
+        Verify OTP (Optional)
+      </button>
+
+      <button type="submit" id="createAccountBtn" class="get-started-free">
+        Create Account
+      </button>
+    </form>
+
+    <div id="signupStatus" class="status-msg" style="display:none;"></div>
+
+    <p style="margin-top:20px; text-align:center; color:var(--text-muted); font-size:0.9rem;">
+      Already have an account?
+      <a href="/pages/login.html" style="color:var(--blue); font-weight:700;">Log in here</a>
+    </p>
+  </section>
+</main>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  // Load departments
+  fetch('/api/departments').then(r => r.json()).then(data => {
+    const list = document.getElementById('deptList');
+    const input = document.getElementById('deptInput');
+    if (list && data.departments) {
+      data.departments.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.dept_name;
+        list.appendChild(opt);
+      });
+      input.setAttribute('list', 'deptList');
+    }
+  }).catch(() => {});
+
+  const statusEl = document.getElementById('signupStatus');
+  const createBtn = document.getElementById('createAccountBtn');
+
+  function showStatus(msg, type) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status-msg ' + (type || '');
+    statusEl.style.display = 'block';
+  }
+
+  document.getElementById('sendOtpBtn').addEventListener('click', async () => {
+    const email = document.getElementById('signupEmail').value.trim();
+    if (!email) { showStatus('Please enter your email first.', 'error'); return; }
+    try {
+      const res = await fetch('/api/email-otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showStatus('✅ OTP sent to ' + email + '. Check your inbox.', 'success');
+      } else {
+        showStatus(data.error || 'Failed to send OTP.', 'error');
+      }
+    } catch (e) {
+      showStatus('Network error sending OTP.', 'error');
+    }
+  });
+
+  document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
+    const email = document.getElementById('signupEmail').value.trim();
+    const otp = document.getElementById('otpInput').value.trim();
+    if (!email || !otp) { showStatus('Enter your email and OTP.', 'error'); return; }
+    try {
+      const res = await fetch('/api/email-otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showStatus('✅ Email verified! You can now create your account.', 'success');
+        createBtn.disabled = false;
+        createBtn.style.opacity = '1';
+      } else {
+        showStatus(data.error || 'Invalid OTP.', 'error');
+      }
+    } catch (e) {
+      showStatus('Network error verifying OTP.', 'error');
+    }
+  });
+</script>
+</body>
+</html>

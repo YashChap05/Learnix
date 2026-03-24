@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/dashboard">Dashboard</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions" id="navActions">
+    <a href="/pages/login.html" class="sign-in">Log In</a>
+    <a href="/pages/signup.html" class="sign-up">Sign Up</a>
+  </div>
+</header>
+
+<main>
+  <section class="about-section">
+    <div class="transform-banner" style="display:inline-block;margin-bottom:20px;">
+      <span>🏫 About Us</span>
+    </div>
+    <h2>About <span style="color:var(--blue);">Learnix</span></h2>
+    <p>
+      Learnix is a modern remote learning platform built to help students and professionals
+      build real-world skills through flexible, mentor-led education. We believe that
+      quality education should be accessible to everyone, anywhere.
+    </p>
+    <p>
+      Our platform connects students with expert instructors, provides smart performance
+      tracking, and offers AI-powered learning tools to make every study session more effective.
+    </p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:40px;text-align:center;">
+      <div style="background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;">
+        <div style="font-size:2rem;margin-bottom:8px;">👨‍🎓</div>
+        <strong style="font-size:1.5rem;font-weight:800;">5,000+</strong>
+        <p style="color:var(--text-muted);margin:4px 0 0;font-size:0.85rem;">Students Enrolled</p>
+      </div>
+      <div style="background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;">
+        <div style="font-size:2rem;margin-bottom:8px;">📚</div>
+        <strong style="font-size:1.5rem;font-weight:800;">4+</strong>
+        <p style="color:var(--text-muted);margin:4px 0 0;font-size:0.85rem;">Expert Courses</p>
+      </div>
+      <div style="background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;">
+        <div style="font-size:2rem;margin-bottom:8px;">⭐</div>
+        <strong style="font-size:1.5rem;font-weight:800;">4.8/5</strong>
+        <p style="color:var(--text-muted);margin:4px 0 0;font-size:0.85rem;">Average Rating</p>
+      </div>
+      <div style="background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;">
+        <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
+        <strong style="font-size:1.5rem;font-weight:800;">92%</strong>
+        <p style="color:var(--text-muted);margin:4px 0 0;font-size:0.85rem;">Completion Rate</p>
+      </div>
+    </div>
+
+    <div class="contact-card" style="margin-top:40px;">
+      <h3>📬 Contact Us</h3>
+      <p><strong>Name:</strong> Yash Chaphekar</p>
+      <p><strong>Phone:</strong> <a href="tel:8433661025">8433661025</a></p>
+      <p><strong>Address:</strong> Mumbai, Maharashtra</p>
+    </div>
+
+    <div style="margin-top:32px;">
+      <a href="/pages/courses.html" class="get-started-free">Explore Courses →</a>
+    </div>
+  </section>
+</main>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  fetch('/api/me', { credentials: 'same-origin' })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(user => {
+      document.getElementById('navActions').innerHTML = `
+        <div class="profile-menu">
+          <button id="profileTrigger" class="profile-trigger">${user.email || 'My Account'}</button>
+          <div id="profileDropdown" class="profile-dropdown">
+            <div class="profile-email">${user.email || ''}</div>
+            <a href="/dashboard" class="profile-item">📊 Dashboard</a>
+            <a href="/profile" class="profile-item">👤 My Profile</a>
+            <a href="/logout" class="profile-item" style="color:#dc2626;">Sign Out</a>
+          </div>
+        </div>`;
+      const t = document.getElementById('profileTrigger'), d = document.getElementById('profileDropdown');
+      t.addEventListener('click', () => d.classList.toggle('open'));
+      document.addEventListener('click', e => { if (!d.contains(e.target) && e.target !== t) d.classList.remove('open'); });
+    }).catch(() => {});
+</script>
+</body>
+</html>

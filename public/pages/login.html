@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/pages/about.html">About</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions">
+    <a href="/pages/signup.html" class="sign-up">Sign Up</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="transform-banner"><span>Welcome Back 👋</span></div>
+    <h1>Log in to <span class="journey">Learnix</span></h1>
+    <p class="subtitle">Continue your learning journey.</p>
+
+    <form class="demo-form" id="loginForm" action="/login" method="post">
+      <input type="email" name="username" id="loginEmail" placeholder="Email Address" required>
+      <input type="password" name="password" id="loginPassword" placeholder="Password" required>
+
+      <div class="show-password-toggle">
+        <input type="checkbox" id="showPwd" onchange="document.getElementById('loginPassword').type = this.checked ? 'text' : 'password'">
+        <label for="showPwd">👁 Show Password</label>
+      </div>
+
+      <select name="role" required>
+        <option value="" disabled selected>Select Role</option>
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+      </select>
+
+      <input type="text" name="department" id="deptInput" placeholder="Department" required>
+      <datalist id="deptList"></datalist>
+
+      <button type="submit" class="get-started-free">Log In</button>
+    </form>
+
+    <div id="loginError" class="status-msg error" style="display:none;"></div>
+
+    <p style="margin-top:20px; text-align:center; color: var(--text-muted); font-size:0.9rem;">
+      Don't have an account?
+      <a href="/pages/signup.html" style="color:var(--blue); font-weight:700;">Sign up free</a>
+    </p>
+  </section>
+</main>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  // Load departments as suggestions
+  fetch('/api/departments').then(r => r.json()).then(data => {
+    const list = document.getElementById('deptList');
+    const input = document.getElementById('deptInput');
+    if (list && data.departments) {
+      data.departments.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.dept_name;
+        list.appendChild(opt);
+      });
+      input.setAttribute('list', 'deptList');
+    }
+  }).catch(() => {});
+
+  // Handle form errors from server redirect
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('error')) {
+    const err = document.getElementById('loginError');
+    err.textContent = decodeURIComponent(params.get('error'));
+    err.style.display = 'block';
+  }
+</script>
+</body>
+</html>

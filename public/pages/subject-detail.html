@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subject Details | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/dashboard">Dashboard</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions" id="navActions">
+    <a href="/pages/login.html" class="sign-in">Log In</a>
+    <a href="/pages/signup.html" class="sign-up">Sign Up</a>
+  </div>
+</header>
+
+<main>
+  <section class="subject-page">
+    <a href="/pages/courses.html" class="subject-back-link">← Back to Courses</a>
+
+    <div class="subject-hero-card">
+      <div class="subject-hero-copy">
+        <span class="subject-page-badge" id="subjectYear">Academic Track</span>
+        <h1 id="subjectTitle">Subject</h1>
+        <p id="subjectDescription">Loading subject details...</p>
+        <div class="subject-highlights" id="subjectHighlights"></div>
+      </div>
+      <div class="subject-overview-panel">
+        <h2>Course Snapshot</h2>
+        <div class="subject-stat-list" id="subjectStats"></div>
+        <div class="subject-actions">
+          <button class="get-started-free" id="enrollBtn" type="button">Enroll Now</button>
+          <a href="#" class="schedule-demo" id="openLessonsBtn" style="display:none;">Open Video Lessons</a>
+          <a href="/pages/courses.html" class="schedule-demo">Browse More Subjects</a>
+        </div>
+        <div id="enrollMsg" class="status-msg" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="subject-content-grid">
+      <article class="subject-panel">
+        <h3>What You Will Learn</h3>
+        <ul id="subjectOutcomes" class="subject-list"></ul>
+      </article>
+
+      <article class="subject-panel">
+        <h3>Recommended For</h3>
+        <ul id="subjectAudience" class="subject-list"></ul>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  const SUBJECTS = {
+    "dbms": {
+      name: "DBMS",
+      year: "First Year",
+      duration: "8 Weeks",
+      mode: "Core Subject",
+      level: "Foundation",
+      description: "Build a strong understanding of database models, SQL, normalization, and transaction concepts used in modern software systems.",
+      highlights: ["SQL Practice", "ER Models", "Normalization"],
+      outcomes: [
+        "Design relational database schemas for real applications.",
+        "Write SQL queries for inserts, updates, reports, and joins.",
+        "Understand normalization, keys, indexing, and transactions."
+      ],
+      audience: [
+        "Students starting computer science fundamentals.",
+        "Learners preparing for database and backend interviews.",
+        "Anyone who wants stronger data modeling basics."
+      ]
+    },
+    "operating-systems": {
+      name: "Operating Systems",
+      year: "First Year",
+      duration: "8 Weeks",
+      mode: "Core Subject",
+      level: "Foundation",
+      description: "Learn how processes, memory, scheduling, file systems, and synchronization work inside an operating system.",
+      highlights: ["Process Scheduling", "Memory Management", "Concurrency"],
+      outcomes: [
+        "Explain CPU scheduling and process lifecycle clearly.",
+        "Compare paging, segmentation, and virtual memory concepts.",
+        "Understand deadlocks, synchronization, and file handling."
+      ],
+      audience: [
+        "Students building low-level computing knowledge.",
+        "Learners preparing for system design fundamentals.",
+        "Anyone interested in how computers manage resources."
+      ]
+    },
+    "ct": {
+      name: "CT",
+      year: "First Year",
+      duration: "6 Weeks",
+      mode: "Theory + Practice",
+      level: "Foundation",
+      description: "Strengthen core computational thinking with logic building, problem solving, abstraction, and algorithmic reasoning.",
+      highlights: ["Logic Building", "Problem Solving", "Algorithms"],
+      outcomes: [
+        "Break complex problems into structured logical steps.",
+        "Use flowcharts and pseudocode for clear solutions.",
+        "Improve speed and confidence in analytical thinking."
+      ],
+      audience: [
+        "Students new to coding and algorithms.",
+        "Learners who want to improve logical reasoning.",
+        "Anyone preparing for aptitude and technical rounds."
+      ]
+    },
+    "telecommunication": {
+      name: "Telecommunication",
+      year: "First Year",
+      duration: "7 Weeks",
+      mode: "Concept Driven",
+      level: "Foundation",
+      description: "Understand signal transmission, communication systems, switching, and the basics of networked communication.",
+      highlights: ["Signals", "Transmission", "Network Basics"],
+      outcomes: [
+        "Explain analog and digital communication concepts.",
+        "Understand modulation and signal transmission basics.",
+        "Relate communication principles to network systems."
+      ],
+      audience: [
+        "Electronics and communication beginners.",
+        "Students looking for telecom fundamentals.",
+        "Learners connecting hardware and networking topics."
+      ]
+    },
+    "fintech": {
+      name: "FinTech",
+      year: "First Year",
+      duration: "6 Weeks",
+      mode: "Industry Focused",
+      level: "Foundation",
+      description: "Explore the technology behind digital payments, banking products, financial platforms, and data-driven finance workflows.",
+      highlights: ["Digital Payments", "Banking Tech", "Finance Apps"],
+      outcomes: [
+        "Understand the basics of digital finance ecosystems.",
+        "Learn how apps handle payments, wallets, and security.",
+        "Connect technology concepts with financial use cases."
+      ],
+      audience: [
+        "Students exploring tech + finance roles.",
+        "Learners curious about digital payment systems.",
+        "Anyone interested in product thinking for finance apps."
+      ]
+    },
+    "data-structures": {
+      name: "Data Structures",
+      year: "Second Year",
+      duration: "9 Weeks",
+      mode: "Core Subject",
+      level: "Intermediate",
+      description: "Master arrays, linked lists, stacks, queues, trees, graphs, and problem-solving strategies for coding practice.",
+      highlights: ["DSA Practice", "Problem Solving", "Interview Prep"],
+      outcomes: [
+        "Choose the right data structure for different problems.",
+        "Analyze time and space complexity with confidence.",
+        "Solve coding problems using structured approaches."
+      ],
+      audience: [
+        "Students preparing for placement coding rounds.",
+        "Learners improving algorithmic problem solving.",
+        "Anyone ready to move beyond programming basics."
+      ]
+    },
+    "computer-networks": {
+      name: "Computer Networks",
+      year: "Second Year",
+      duration: "8 Weeks",
+      mode: "Core Subject",
+      level: "Intermediate",
+      description: "Study layered networking, protocols, routing, addressing, switching, and the internet architecture used in modern systems.",
+      highlights: ["OSI Model", "Protocols", "Routing"],
+      outcomes: [
+        "Explain network layers and protocol responsibilities.",
+        "Understand IP addressing, routing, and switching basics.",
+        "Apply networking concepts to real-world systems."
+      ],
+      audience: [
+        "Students building strong systems knowledge.",
+        "Learners preparing for networking interviews.",
+        "Anyone curious about how the internet works."
+      ]
+    },
+    "java-programming": {
+      name: "Java Programming",
+      year: "Second Year",
+      duration: "8 Weeks",
+      mode: "Hands On",
+      level: "Intermediate",
+      description: "Learn object-oriented programming, exception handling, collections, and Java application development from basics to projects.",
+      highlights: ["OOP", "Collections", "Application Logic"],
+      outcomes: [
+        "Write object-oriented Java programs cleanly.",
+        "Use classes, inheritance, interfaces, and collections.",
+        "Build console and mini application projects."
+      ],
+      audience: [
+        "Students learning object-oriented development.",
+        "Learners targeting Java-based interviews and internships.",
+        "Anyone moving from basic syntax to structured coding."
+      ]
+    },
+    "software-engineering": {
+      name: "Software Engineering",
+      year: "Second Year",
+      duration: "7 Weeks",
+      mode: "Project Oriented",
+      level: "Intermediate",
+      description: "Cover software lifecycle, requirement analysis, design models, testing, maintenance, and collaborative development practices.",
+      highlights: ["SDLC", "Testing", "Team Workflow"],
+      outcomes: [
+        "Understand major stages of software development lifecycle.",
+        "Document requirements and design software modules.",
+        "Learn testing and maintenance best practices."
+      ],
+      audience: [
+        "Students entering team-based development work.",
+        "Learners interested in project delivery processes.",
+        "Anyone needing stronger software process fundamentals."
+      ]
+    },
+    "digital-electronics": {
+      name: "Digital Electronics",
+      year: "Second Year",
+      duration: "7 Weeks",
+      mode: "Lab Supported",
+      level: "Intermediate",
+      description: "Understand logic gates, combinational and sequential circuits, number systems, and digital design principles.",
+      highlights: ["Logic Gates", "Circuits", "Boolean Algebra"],
+      outcomes: [
+        "Simplify expressions with Boolean algebra and K-maps.",
+        "Explain combinational and sequential circuit design.",
+        "Build foundational knowledge for digital systems."
+      ],
+      audience: [
+        "Electronics and computer engineering students.",
+        "Learners building hardware fundamentals.",
+        "Anyone connecting logic theory with circuits."
+      ]
+    },
+    "machine-learning": {
+      name: "Machine Learning",
+      year: "Third Year",
+      duration: "10 Weeks",
+      mode: "Project Based",
+      level: "Advanced",
+      description: "Learn supervised and unsupervised learning, model evaluation, feature engineering, and practical ML workflows.",
+      highlights: ["Model Building", "Evaluation", "Projects"],
+      outcomes: [
+        "Train and evaluate basic machine learning models.",
+        "Prepare data and features for better model quality.",
+        "Understand regression, classification, and clustering."
+      ],
+      audience: [
+        "Students moving into AI and analytics roles.",
+        "Learners building ML portfolio projects.",
+        "Anyone comfortable with Python and statistics basics."
+      ]
+    },
+    "cloud-computing": {
+      name: "Cloud Computing",
+      year: "Third Year",
+      duration: "8 Weeks",
+      mode: "Industry Focused",
+      level: "Advanced",
+      description: "Explore cloud service models, deployment patterns, scalability, storage, and infrastructure concepts used in production systems.",
+      highlights: ["AWS Concepts", "Scalability", "Deployment"],
+      outcomes: [
+        "Differentiate IaaS, PaaS, and SaaS clearly.",
+        "Understand cloud deployment and scaling patterns.",
+        "Apply cloud concepts to web and data applications."
+      ],
+      audience: [
+        "Students preparing for cloud-related roles.",
+        "Learners interested in deployment and infrastructure.",
+        "Anyone connecting software systems with cloud platforms."
+      ]
+    },
+    "cyber-security": {
+      name: "Cyber Security",
+      year: "Third Year",
+      duration: "8 Weeks",
+      mode: "Security Track",
+      level: "Advanced",
+      description: "Study core security principles, threats, cryptography basics, safe authentication, and defensive security practices.",
+      highlights: ["Threat Modeling", "Security Basics", "Defensive Practice"],
+      outcomes: [
+        "Recognize common attack surfaces in applications and systems.",
+        "Understand basic cryptography and secure authentication.",
+        "Apply practical security thinking during development."
+      ],
+      audience: [
+        "Students interested in security and ethical defense.",
+        "Learners building secure coding awareness.",
+        "Anyone exploring modern application safety concepts."
+      ]
+    },
+    "web-technologies": {
+      name: "Web Technologies",
+      year: "Third Year",
+      duration: "8 Weeks",
+      mode: "Hands On",
+      level: "Advanced",
+      description: "Go deeper into modern frontend and backend web stacks, APIs, deployment, and responsive application development.",
+      highlights: ["Frontend", "Backend", "APIs"],
+      outcomes: [
+        "Build multi-page and dynamic web applications.",
+        "Connect frontend interfaces with backend APIs.",
+        "Understand deployment-ready web architecture basics."
+      ],
+      audience: [
+        "Students aiming for web developer roles.",
+        "Learners expanding past entry-level HTML and CSS.",
+        "Anyone building portfolio-ready web projects."
+      ]
+    },
+    "mobile-app-development": {
+      name: "Mobile App Development",
+      year: "Third Year",
+      duration: "9 Weeks",
+      mode: "Project Based",
+      level: "Advanced",
+      description: "Learn mobile UI flow, app architecture, APIs, and the essentials of building Android or cross-platform apps.",
+      highlights: ["App UI", "APIs", "Mobile Projects"],
+      outcomes: [
+        "Design simple but effective mobile app flows.",
+        "Connect apps with APIs and backend services.",
+        "Understand the app build and testing lifecycle."
+      ],
+      audience: [
+        "Students targeting Android or app developer roles.",
+        "Learners interested in product-focused development.",
+        "Anyone wanting to ship their first app prototype."
+      ]
+    },
+    "artificial-intelligence": {
+      name: "Artificial Intelligence",
+      year: "Final Year",
+      duration: "10 Weeks",
+      mode: "Advanced Elective",
+      level: "Expert",
+      description: "Study intelligent systems, search, reasoning, optimization, and practical AI applications across modern industries.",
+      highlights: ["Reasoning", "Search", "AI Applications"],
+      outcomes: [
+        "Understand foundational AI problem-solving methods.",
+        "Relate classical AI concepts to modern intelligent systems.",
+        "Discuss practical use cases and AI limitations clearly."
+      ],
+      audience: [
+        "Final-year students exploring AI specialization.",
+        "Learners preparing for advanced tech roles.",
+        "Anyone interested in intelligent systems theory."
+      ]
+    },
+    "big-data-analytics": {
+      name: "Big Data Analytics",
+      year: "Final Year",
+      duration: "9 Weeks",
+      mode: "Industry Focused",
+      level: "Expert",
+      description: "Learn data pipelines, analytics workflows, distributed processing concepts, and insight generation from large-scale datasets.",
+      highlights: ["Data Pipelines", "Analytics", "Large Datasets"],
+      outcomes: [
+        "Understand big data storage and processing concepts.",
+        "Explore analytics workflows for large datasets.",
+        "Connect data engineering ideas with business insight."
+      ],
+      audience: [
+        "Students entering analytics and data engineering roles.",
+        "Learners scaling beyond traditional datasets.",
+        "Anyone interested in large-scale data workflows."
+      ]
+    },
+    "internet-of-things": {
+      name: "Internet of Things",
+      year: "Final Year",
+      duration: "8 Weeks",
+      mode: "Applied Systems",
+      level: "Expert",
+      description: "Explore connected devices, sensors, embedded communication, and the software systems behind IoT solutions.",
+      highlights: ["Sensors", "Embedded Systems", "Connected Devices"],
+      outcomes: [
+        "Explain the components of a basic IoT ecosystem.",
+        "Understand device communication and data flow concepts.",
+        "Connect hardware inputs with software-driven outputs."
+      ],
+      audience: [
+        "Students interested in smart device systems.",
+        "Learners combining hardware and software interests.",
+        "Anyone exploring connected product design."
+      ]
+    },
+    "blockchain": {
+      name: "Blockchain",
+      year: "Final Year",
+      duration: "7 Weeks",
+      mode: "Emerging Tech",
+      level: "Expert",
+      description: "Understand distributed ledgers, consensus, smart contract ideas, and blockchain use cases beyond cryptocurrency.",
+      highlights: ["Distributed Ledger", "Consensus", "Smart Contracts"],
+      outcomes: [
+        "Explain blockchain structure and transaction flow.",
+        "Understand core consensus and trust concepts.",
+        "Evaluate practical use cases and limitations."
+      ],
+      audience: [
+        "Students exploring emerging technology tracks.",
+        "Learners curious about decentralized systems.",
+        "Anyone interested in smart contract fundamentals."
+      ]
+    },
+    "project-management": {
+      name: "Project Management",
+      year: "Final Year",
+      duration: "6 Weeks",
+      mode: "Career Ready",
+      level: "Expert",
+      description: "Learn planning, execution, stakeholder communication, timelines, and delivery practices for technical projects.",
+      highlights: ["Planning", "Execution", "Team Coordination"],
+      outcomes: [
+        "Break projects into milestones, tasks, and ownership.",
+        "Track progress, risks, and delivery expectations.",
+        "Communicate status clearly with teams and stakeholders."
+      ],
+      audience: [
+        "Students leading final-year projects or teams.",
+        "Learners preparing for analyst or coordinator roles.",
+        "Anyone wanting stronger delivery and planning skills."
+      ]
+    },
+    "physics": {
+      name: "Physics",
+      year: "Class 12",
+      duration: "12 Weeks",
+      mode: "Board Prep",
+      level: "Academic",
+      description: "Strengthen Class 12 physics with concept-first teaching, derivations, problem practice, and exam-oriented revision.",
+      highlights: ["Numericals", "Derivations", "Board Practice"],
+      outcomes: [
+        "Build clarity across mechanics, electricity, and optics.",
+        "Practice board-style problems and derivations.",
+        "Improve accuracy and speed for exams."
+      ],
+      audience: [
+        "Class 12 board exam students.",
+        "Learners preparing for entrance basics.",
+        "Anyone who wants stronger conceptual physics."
+      ]
+    },
+    "chemistry": {
+      name: "Chemistry",
+      year: "Class 12",
+      duration: "12 Weeks",
+      mode: "Board Prep",
+      level: "Academic",
+      description: "Cover physical, organic, and inorganic chemistry with reaction understanding, revision plans, and question practice.",
+      highlights: ["Reactions", "Concept Clarity", "Exam Revision"],
+      outcomes: [
+        "Understand core concepts across major chemistry branches.",
+        "Revise important reactions and formulas effectively.",
+        "Practice exam-oriented problems with better retention."
+      ],
+      audience: [
+        "Class 12 students aiming for strong board scores.",
+        "Learners revising chemistry chapter by chapter.",
+        "Anyone building a steadier exam preparation routine."
+      ]
+    },
+    "mathematics": {
+      name: "Mathematics",
+      year: "Class 12",
+      duration: "12 Weeks",
+      mode: "Board Prep",
+      level: "Academic",
+      description: "Improve confidence in algebra, calculus, vectors, probability, and exam-style problem solving for Class 12.",
+      highlights: ["Calculus", "Algebra", "Problem Solving"],
+      outcomes: [
+        "Solve standard and application-based math questions.",
+        "Build stronger speed in calculus and algebra topics.",
+        "Prepare for school exams with targeted revision."
+      ],
+      audience: [
+        "Class 12 students working toward higher scores.",
+        "Learners who need structured math revision.",
+        "Anyone improving confidence in advanced school math."
+      ]
+    },
+    "english": {
+      name: "English",
+      year: "Class 12",
+      duration: "10 Weeks",
+      mode: "Board Prep",
+      level: "Academic",
+      description: "Develop reading, writing, grammar, and literature-answering skills for stronger Class 12 English performance.",
+      highlights: ["Writing Skills", "Grammar", "Literature"],
+      outcomes: [
+        "Write structured answers, letters, and essays effectively.",
+        "Improve grammar accuracy and reading comprehension.",
+        "Prepare literature answers with better expression."
+      ],
+      audience: [
+        "Class 12 students preparing for board exams.",
+        "Learners improving written communication skills.",
+        "Anyone who wants more confidence in English papers."
+      ]
+    },
+    "computer-science": {
+      name: "Computer Science",
+      year: "Class 12",
+      duration: "10 Weeks",
+      mode: "Board Prep",
+      level: "Academic",
+      description: "Learn programming, SQL, data handling, and core Class 12 computer science topics with practical exam support.",
+      highlights: ["Programming", "SQL", "Practical Prep"],
+      outcomes: [
+        "Practice important board-level programming questions.",
+        "Revise SQL, database, and logic-based topics clearly.",
+        "Prepare for both theory and practical exams."
+      ],
+      audience: [
+        "Class 12 computer science students.",
+        "Learners combining school prep with coding basics.",
+        "Anyone who wants a smoother transition into college CS."
+      ]
+    }
+  };
+
+  const subjectKey = new URLSearchParams(window.location.search).get("subject");
+  const subject = SUBJECTS[subjectKey];
+  const enrollBtn = document.getElementById("enrollBtn");
+  const enrollMsg = document.getElementById("enrollMsg");
+  const openLessonsBtn = document.getElementById("openLessonsBtn");
+
+  function addEnrolledFlag(url) {
+    return url + (url.includes("?") ? "&" : "?") + "enrolled=1";
+  }
+
+  function lessonPageUrl() {
+    return "/pages/subject-learning.html?subject=" + subjectKey;
+  }
+
+  function showLessonsButton(useEnrolledFlag) {
+    openLessonsBtn.href = useEnrolledFlag ? addEnrolledFlag(lessonPageUrl()) : lessonPageUrl();
+    openLessonsBtn.style.display = "inline-block";
+  }
+
+  function renderSubject() {
+    if (!subject) {
+      document.getElementById("subjectTitle").textContent = "Subject Not Found";
+      document.getElementById("subjectDescription").textContent = "This subject page is not available yet. Please return to the courses page and choose another subject.";
+      enrollBtn.style.display = "none";
+      openLessonsBtn.style.display = "none";
+      return;
+    }
+
+    document.title = subject.name + " | Learnix";
+    document.getElementById("subjectYear").textContent = subject.year;
+    document.getElementById("subjectTitle").textContent = subject.name;
+    document.getElementById("subjectDescription").textContent = subject.description;
+    document.getElementById("subjectHighlights").innerHTML = subject.highlights.map(item => `<span>${item}</span>`).join("");
+    document.getElementById("subjectStats").innerHTML = `
+      <div><strong>Duration</strong><span>${subject.duration}</span></div>
+      <div><strong>Mode</strong><span>${subject.mode}</span></div>
+      <div><strong>Level</strong><span>${subject.level}</span></div>
+    `;
+    document.getElementById("subjectOutcomes").innerHTML = subject.outcomes.map(item => `<li>${item}</li>`).join("");
+    document.getElementById("subjectAudience").innerHTML = subject.audience.map(item => `<li>${item}</li>`).join("");
+  }
+
+  function wireAuth() {
+    fetch("/api/me", { credentials: "same-origin" })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(user => {
+        document.getElementById("navActions").innerHTML = `
+          <div class="profile-menu">
+            <button id="profileTrigger" class="profile-trigger" type="button">${user.email || "My Account"}</button>
+            <div id="profileDropdown" class="profile-dropdown">
+              <div class="profile-email">${user.email || ""}</div>
+              <a href="/dashboard" class="profile-item">📊 Dashboard</a>
+              <a href="/profile" class="profile-item">👤 My Profile</a>
+              <a href="/logout" class="profile-item" style="color:#dc2626;">Sign Out</a>
+            </div>
+          </div>
+        `;
+        const trigger = document.getElementById("profileTrigger");
+        const dropdown = document.getElementById("profileDropdown");
+        trigger.addEventListener("click", () => dropdown.classList.toggle("open"));
+        document.addEventListener("click", e => {
+          if (!dropdown.contains(e.target) && e.target !== trigger) dropdown.classList.remove("open");
+        });
+
+        if (new URLSearchParams(window.location.search).get("enrolled") === "1") {
+          enrollBtn.textContent = "Enrolled";
+          enrollBtn.style.background = "var(--green)";
+          enrollBtn.disabled = true;
+          showLessonsButton(true);
+          return;
+        }
+
+        return fetch("/api/my-courses", { credentials: "same-origin" })
+          .then(res => { if (!res.ok) throw new Error(); return res.json(); })
+          .then(data => {
+            const enrolledCourses = Array.isArray(data.courses) ? data.courses : [];
+            const isEnrolled = enrolledCourses.some(course =>
+              String(course.course_name || "").trim().toLowerCase() === String(subject.name || "").trim().toLowerCase()
+            );
+            if (isEnrolled) {
+              enrollBtn.textContent = "Enrolled";
+              enrollBtn.style.background = "var(--green)";
+              enrollBtn.disabled = true;
+              showLessonsButton(true);
+            }
+          });
+      })
+      .catch(() => {});
+  }
+
+  async function handleEnroll() {
+    if (!subject) return;
+
+    const authRes = await fetch("/api/me", { credentials: "same-origin" });
+    if (!authRes.ok) {
+      window.location.href = "/pages/login.html";
+      return;
+    }
+
+    enrollBtn.textContent = "Enrolling...";
+    enrollBtn.disabled = true;
+
+    try {
+      const res = await fetch("/api/enroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ courseName: subject.name })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Enrollment failed");
+
+      enrollBtn.textContent = "Enrolled";
+      enrollBtn.style.background = "var(--green)";
+      enrollMsg.textContent = data.alreadyEnrolled
+        ? "You are already enrolled in this subject."
+        : "Enrollment successful. Your subject is ready to open.";
+      enrollMsg.className = "status-msg success";
+      enrollMsg.style.display = "block";
+      showLessonsButton(true);
+    } catch (error) {
+      enrollBtn.textContent = "Enroll Now";
+      enrollBtn.disabled = false;
+      enrollMsg.textContent = error.message;
+      enrollMsg.className = "status-msg error";
+      enrollMsg.style.display = "block";
+    }
+  }
+
+  enrollBtn.addEventListener("click", handleEnroll);
+  renderSubject();
+  wireAuth();
+</script>
+</body>
+</html>

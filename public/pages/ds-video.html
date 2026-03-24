@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Science | Learnix</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<header class="navbar">
+  <a href="/pages/home.html" class="logo">
+    <span class="logo-icon">📖</span>
+    <span class="logo-text">Learnix</span>
+  </a>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="/pages/home.html">Home</a></li>
+      <li><a href="/pages/courses.html">Courses</a></li>
+      <li><a href="/dashboard">Dashboard</a></li>
+    </ul>
+  </nav>
+  <div class="nav-actions" id="navActions">
+    <a href="/pages/login.html" class="sign-in">Log In</a>
+    <a href="/pages/signup.html" class="sign-up">Sign Up</a>
+  </div>
+</header>
+
+<main>
+  <div class="video-page">
+    <!-- Back link -->
+    <a href="/pages/courses.html" style="display:inline-flex;align-items:center;gap:6px;color:var(--text-muted);font-size:0.9rem;font-weight:600;margin-bottom:20px;text-decoration:none;">
+      ← Back to Courses
+    </a>
+
+    <!-- Video player -->
+    <div class="video-wrapper">
+      <video id="courseVideo" controls preload="metadata" poster="">
+        <source src="/assets/media/videos/DS.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+
+    <!-- Course info -->
+    <div class="video-info">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+        <span class="badge advanced">Advanced</span>
+        <span style="font-size:0.85rem;color:var(--text-muted);">⏱ 10 Weeks</span>
+        <span style="font-size:0.85rem;color:var(--text-muted);">📊 Project-Based</span>
+      </div>
+      <h1>Data Science</h1>
+      <p>Learn data analysis, visualization, machine learning, and model evaluation with Python and R. Project-based curriculum with real datasets and Kaggle challenges.</p>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;" id="enrollActions">
+        <button class="get-started-free" id="enrollBtn" onclick="handleEnroll()">Enroll in Course</button>
+        <a href="/pages/courses.html" class="schedule-demo">View All Courses</a>
+      </div>
+      <div id="enrollMsg" class="status-msg" style="display:none;"></div>
+    </div>
+
+    <!-- AI Section -->
+    <div class="ai-section">
+      <h2>🤖 AI Learning Tools</h2>
+      <button class="get-started-free" id="aiBtn" onclick="loadAI()" style="margin-bottom:20px;">
+        Generate Summary &amp; Quiz
+      </button>
+
+      <div id="summaryBox" class="summary-box" style="display:none;">
+        <strong style="display:block;margin-bottom:10px;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-light);">Video Summary</strong>
+        <div id="summaryText"></div>
+      </div>
+
+      <div id="quizSection" style="display:none;">
+        <h3 style="font-size:1.1rem;font-weight:700;margin:24px 0 12px;">
+          📝 Quick Quiz — click a question to reveal the answer
+        </h3>
+        <div id="quizList" class="quiz-list"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
+
+<script src="/assets/js/main.js"></script>
+<script>
+  const COURSE_NAME = 'Data Science';
+  const VIDEO_PATH = '/assets/media/videos/DS.mp4';
+
+  // Auth state
+  fetch('/api/me', { credentials: 'same-origin' })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(user => {
+      document.getElementById('navActions').innerHTML = `
+        <div class="profile-menu">
+          <button id="profileTrigger" class="profile-trigger">${user.email || 'My Account'}</button>
+          <div id="profileDropdown" class="profile-dropdown">
+            <div class="profile-email">${user.email || ''}</div>
+            <a href="/dashboard" class="profile-item">📊 Dashboard</a>
+            <a href="/profile" class="profile-item">👤 My Profile</a>
+            <a href="/logout" class="profile-item" style="color:#dc2626;">Sign Out</a>
+          </div>
+        </div>`;
+      const t = document.getElementById('profileTrigger'), d = document.getElementById('profileDropdown');
+      t.addEventListener('click', () => d.classList.toggle('open'));
+      document.addEventListener('click', e => { if (!d.contains(e.target) && e.target !== t) d.classList.remove('open'); });
+
+      // Check if already enrolled
+      if (new URLSearchParams(window.location.search).get('enrolled') === '1') {
+        document.getElementById('enrollBtn').textContent = '✅ Enrolled';
+        document.getElementById('enrollBtn').style.background = 'var(--green)';
+        document.getElementById('enrollBtn').disabled = true;
+      }
+    }).catch(() => {});
+
+  async function handleEnroll() {
+    const msg = document.getElementById('enrollMsg');
+    const btn = document.getElementById('enrollBtn');
+
+    const authRes = await fetch('/api/me', { credentials: 'same-origin' });
+    if (!authRes.ok) {
+      window.location.href = '/pages/login.html';
+      return;
+    }
+
+    btn.textContent = 'Enrolling...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ courseName: COURSE_NAME })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+
+      btn.textContent = '✅ Enrolled!';
+      btn.style.background = 'var(--green)';
+      msg.textContent = data.alreadyEnrolled ? 'You were already enrolled in this course.' : '🎉 Successfully enrolled! Keep learning.';
+      msg.className = 'status-msg success';
+      msg.style.display = 'block';
+    } catch (e) {
+      btn.textContent = 'Enroll in Course';
+      btn.disabled = false;
+      msg.textContent = e.message;
+      msg.className = 'status-msg error';
+      msg.style.display = 'block';
+    }
+  }
+
+  async function loadAI() {
+    const btn = document.getElementById('aiBtn');
+    const summaryBox = document.getElementById('summaryBox');
+    const summaryText = document.getElementById('summaryText');
+    const quizSection = document.getElementById('quizSection');
+    const quizList = document.getElementById('quizList');
+
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoUrl: VIDEO_PATH, maxQuestions: 5 })
+      });
+      const data = await res.json();
+
+      summaryText.innerHTML = data.summary_html || ('<p>' + (data.summary || 'No summary available.') + '</p>');
+      summaryBox.style.display = 'block';
+
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        quizList.innerHTML = data.questions.map((q, i) => `
+          <div class="quiz-item" onclick="this.classList.toggle('open')">
+            <div class="q">Q${i + 1}. ${q.question}</div>
+            <div class="a">💡 ${q.answer}</div>
+          </div>`).join('');
+        quizSection.style.display = 'block';
+      }
+
+      btn.textContent = '✅ Done! Scroll down to see';
+      btn.style.background = 'var(--green)';
+    } catch (e) {
+      btn.textContent = 'Try Again';
+      btn.disabled = false;
+      summaryText.textContent = 'Failed to generate content. Make sure the server is running.';
+      summaryBox.style.display = 'block';
+    }
+  }
+</script>
+</body>
+</html>
