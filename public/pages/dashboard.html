@@ -99,6 +99,25 @@
       </div>
     </div>
 
+    <div class="subject-panel" style="margin:16px 0 8px;">
+      <h3 style="margin:0 0 12px;">Upload Course Video</h3>
+      <p style="margin:0 0 12px;color:var(--text-muted);">Upload your lecture video so enrolled students can open and watch it.</p>
+      <form id="teacherUploadForm" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+        <label style="display:flex;flex-direction:column;gap:6px;min-width:220px;">
+          <span>Course</span>
+          <select id="teacherUploadCourse" required>
+            <option value="">Select course</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;min-width:240px;">
+          <span>Video file</span>
+          <input id="teacherUploadVideo" type="file" accept="video/*" required>
+        </label>
+        <button class="get-started-free" id="teacherUploadBtn" type="submit">Upload Video</button>
+      </form>
+      <div id="teacherUploadMsg" class="status-msg" style="display:none;margin-top:10px;"></div>
+    </div>
+
     <!-- Student cards -->
     <div id="teacherGrid" class="teacher-grid">
       <div class="teacher-card loading">
@@ -280,6 +299,73 @@
     renderBarChart('attendanceChart', topAtt, 'value', 'label');
   }
 
+  function setUploadMessage(type, text) {
+    const msg = document.getElementById('teacherUploadMsg');
+    msg.textContent = text;
+    msg.className = 'status-msg ' + type;
+    msg.style.display = 'block';
+  }
+
+  async function loadTeacherUploadCourses() {
+    const select = document.getElementById('teacherUploadCourse');
+    if (!select) return;
+    try {
+      const res = await fetch('/api/teacher/courses', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load courses');
+
+      const courses = Array.isArray(data.courses) ? data.courses : [];
+      select.innerHTML = '<option value="">Select course</option>' + courses.map(c =>
+        `<option value="${c.course_id}">${c.course_name}</option>`
+      ).join('');
+    } catch (e) {
+      setUploadMessage('error', e.message || 'Unable to load your courses.');
+    }
+  }
+
+  async function handleTeacherVideoUpload(event) {
+    event.preventDefault();
+    const btn = document.getElementById('teacherUploadBtn');
+    const courseSelect = document.getElementById('teacherUploadCourse');
+    const fileInput = document.getElementById('teacherUploadVideo');
+
+    const courseId = Number(courseSelect.value || 0);
+    const file = fileInput.files && fileInput.files[0];
+    if (!courseId) {
+      setUploadMessage('error', 'Please select a course.');
+      return;
+    }
+    if (!file) {
+      setUploadMessage('error', 'Please choose a video file to upload.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Uploading...';
+    const formData = new FormData();
+    formData.append('courseId', String(courseId));
+    formData.append('courseVideo', file);
+
+    try {
+      const res = await fetch('/api/teacher/upload-video', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+      fileInput.value = '';
+      setUploadMessage('success', `Uploaded for ${data.courseName}. Students can now open this video from their enrolled courses.`);
+      await loadTeacherUploadCourses();
+    } catch (e) {
+      setUploadMessage('error', e.message || 'Upload failed');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Upload Video';
+    }
+  }
+
   // ─── Load student performance ────────────────
   async function loadStudentDashboard() {
     try {
@@ -307,6 +393,7 @@
       const summary = data.summary || {};
       teacherCache = students;
       section.style.display = 'block';
+      loadTeacherUploadCourses();
 
       // Populate course filter
       const cf = document.getElementById('teacherCourseFilter');
@@ -331,6 +418,11 @@
       // Not a teacher or error — hide section
       section.style.display = 'none';
     }
+  }
+
+  const teacherUploadForm = document.getElementById('teacherUploadForm');
+  if (teacherUploadForm) {
+    teacherUploadForm.addEventListener('submit', handleTeacherVideoUpload);
   }
 
   // ─── Init ────────────────────────────────────
