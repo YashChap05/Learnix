@@ -60,6 +60,22 @@ app.get("/UIUX_vid.html", (_req, res) => res.redirect("/pages/uiux-video.html"))
 
 app.use(express.static(PUBLIC_DIR));
 
+function buildFallbackAiResponse(maxQuestions = 5, reason = "") {
+  const summary = "This lesson covers core concepts relevant to your course and highlights practical ideas you should review while studying the chapter.";
+  const questions = [
+    { question: "What is the main focus of this lesson?", answer: "The lesson focuses on the chapter's core concepts and practical understanding." },
+    { question: "What should you revise after watching the chapter?", answer: "You should revise the important concepts, terms, and examples from the lesson." },
+    { question: "How can you improve your understanding of this topic?", answer: "Review the summary, replay the lesson if needed, and practice answering chapter questions." }
+  ];
+
+  return {
+    summary,
+    summary_html: `<p>${summary}</p>`,
+    questions: questions.slice(0, maxQuestions),
+    warning: reason || undefined
+  };
+}
+
 // ─── Teacher video upload ─────────────────────
 app.post("/api/teacher/upload-video", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Please log in first" });
@@ -68,18 +84,47 @@ app.post("/api/teacher/upload-video", (req, res) => {
   }
   uploadVideo.single("courseVideo")(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message || "Upload failed" });
+    const teacherId = Number(req.session.userId);
     const courseName = req.body && req.body.courseName ? String(req.body.courseName).trim() : "";
-    if (!courseName) return res.status(400).json({ error: "courseName is required" });
+    const rawCourseId = req.body && req.body.courseId ? Number(req.body.courseId) : null;
+    if (!courseName && !Number.isInteger(rawCourseId)) {
+      return res.status(400).json({ error: "courseName or courseId is required" });
+    }
     if (!req.file) return res.status(400).json({ error: "courseVideo is required" });
-    const filePath = `/uploads/${req.file.filename}`;
-    db.query(
-      `UPDATE courses SET video_path = ? WHERE course_name = ?`,
-      [filePath, courseName],
-      (upErr) => {
-        if (upErr) return res.status(500).json({ error: "Upload succeeded but course update failed" });
-        return res.json({ message: "Video uploaded successfully", filePath, courseName });
+
+    const selectSql = Number.isInteger(rawCourseId)
+      ? "SELECT course_id, course_name, teacher_id FROM courses WHERE course_id = ? LIMIT 1"
+      : "SELECT course_id, course_name, teacher_id FROM courses WHERE course_name = ? LIMIT 1";
+    const selectVal = Number.isInteger(rawCourseId) ? rawCourseId : courseName;
+
+    db.query(selectSql, [selectVal], (findErr, courseRows) => {
+      if (findErr) return res.status(500).json({ error: "Failed to validate course" });
+      if (!courseRows || courseRows.length === 0) {
+        return res.status(404).json({ error: "Course not found" });
       }
-    );
+
+      const course = courseRows[0];
+      if (course.teacher_id && Number(course.teacher_id) !== teacherId) {
+        return res.status(403).json({ error: "This course belongs to another teacher" });
+      }
+
+      const filePath = `/uploads/${req.file.filename}`;
+      db.query(
+        `UPDATE courses
+         SET video_path = ?, teacher_id = COALESCE(teacher_id, ?)
+         WHERE course_id = ?`,
+        [filePath, teacherId, course.course_id],
+        (upErr) => {
+          if (upErr) return res.status(500).json({ error: "Upload succeeded but course update failed" });
+          return res.json({
+            message: "Video uploaded successfully",
+            filePath,
+            courseId: course.course_id,
+            courseName: course.course_name
+          });
+        }
+      );
+    });
   });
 });
 
@@ -88,33 +133,40 @@ app.post("/api/generate", async (req, res) => {
   const { videoUrl, maxQuestions = 5 } = req.body || {};
   if (!videoUrl) return res.status(400).json({ error: "videoUrl required" });
 
-  const OPENAI_KEY = process.env.OPENAI_API_KEY;
+  const OPENAI_KEY = String(process.env.OPENAI_API_KEY || "").trim();
+  const OPENAI_MODEL = String(process.env.OPENAI_MODEL || "gpt-4o-mini").trim();
+  const OPENAI_BASE_URL = String(process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").trim().replace(/\/$/, "");
+
   if (!OPENAI_KEY) {
-    const summary = `This video covers core concepts relevant to your course. It introduces foundational ideas and practical techniques used in real-world applications.`;
-    const questions = [
-      { question: "What is the main topic of this video?", answer: "Core concepts and practical techniques of the subject." },
-      { question: "Why is this subject important?", answer: "It forms the foundation for many real-world applications." },
-      { question: "What tools or languages are discussed?", answer: "Various tools relevant to the course topic." }
-    ];
-    return res.json({ summary, summary_html: `<p>${summary}</p>`, questions: questions.slice(0, maxQuestions) });
+    return res.json(buildFallbackAiResponse(maxQuestions, "OPENAI_API_KEY is not configured."));
+  }
+
+  if (!OPENAI_KEY.startsWith("sk-")) {
+    console.warn("AI summary fallback: OPENAI_API_KEY does not look like a valid OpenAI key.");
+    return res.json(buildFallbackAiResponse(maxQuestions, "Configured API key is not an OpenAI key."));
   }
 
   try {
     const payload = {
-      model: "gpt-4o-mini",
+      model: OPENAI_MODEL,
       messages: [
         { role: "system", content: `You output JSON only: {"summary":"...","summary_html":"...","questions":[{"question":"...","answer":"..."}]}` },
         { role: "user", content: `Summarize this video and generate ${maxQuestions} quiz questions. Video: ${videoUrl}` }
       ],
       temperature: 0.2,
+      stream: false,
       max_tokens: 800
     };
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+    const resp = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${OPENAI_KEY}` },
       body: JSON.stringify(payload)
     });
-    if (!resp.ok) return res.status(502).json({ error: "OpenAI API error" });
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      console.error(`OpenAI API error (${resp.status}): ${errorText}`);
+      return res.json(buildFallbackAiResponse(maxQuestions, `OpenAI request failed with status ${resp.status}.`));
+    }
     const body = await resp.json();
     const content = body.choices?.[0]?.message?.content || "{}";
     let parsed;

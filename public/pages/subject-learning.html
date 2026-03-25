@@ -78,6 +78,8 @@
           </div>
         </div>
       </div>
+
+
     </aside>
   </div>
 </main>
@@ -91,7 +93,7 @@
       name: "DBMS",
       year: "First Year",
       chapterVideos: [
-        "/assets/media/dbms/ch1.mp4",
+        "/assets/media/dbms/NFAtoDFA.mp4",
         "/assets/media/dbms/ch2.mp4",
         "/assets/media/dbms/ch3.mp4",
         "/assets/media/dbms/ch4.mp4",
@@ -119,7 +121,7 @@
       name: "Operating Systems",
       year: "First Year",
       chapterVideos: [
-        "/assets/media/operating-systems/ch1.mp4",
+        "/assets/media/operating-systems/NFAtoDFA.mp4",
         "/assets/media/operating-systems/ch2.mp4",
         "/assets/media/operating-systems/ch3.mp4",
         "/assets/media/operating-systems/ch4.mp4",
@@ -553,12 +555,30 @@
   const lessonData = SUBJECT_LIBRARY[subjectKey];
   const fallbackChapters = Array.from({ length: 10 }, (_, index) => `Chapter ${index + 1}`);
   let selectedChapter = 0;
+  let uploadedVideos = [];
+  let allItems = [];
+
+  let quizQuestions = [];
+  let currentQuizIndex = 0;
+  let currentQuizAttempts = 0;
+  let quizScore = 0;
 
   function getChapterList() {
     const base = (lessonData && Array.isArray(lessonData.chapters) && lessonData.chapters.length > 0)
       ? lessonData.chapters
       : fallbackChapters.map((_, index) => `${lessonData ? lessonData.name : "Subject"} Chapter ${index + 1}`);
     return base.slice(0, 10);
+  }
+
+  function buildAllItems() {
+    allItems = [];
+    const chapters = getChapterList();
+    chapters.forEach((ch, idx) => {
+      allItems.push({ type: 'chapter', index: idx, title: ch, videoPath: null });
+    });
+    uploadedVideos.forEach((uv) => {
+      allItems.push({ type: 'uploaded', courseId: uv.course_id, title: uv.course_name, videoPath: uv.video_path, teacherName: uv.teacher_name });
+    });
   }
 
   function chapterVideoUrl() {
@@ -613,72 +633,201 @@
   }
 
   function renderChapters() {
-    const chapters = getChapterList();
     const chapterList = document.getElementById("chapterList");
-    chapterList.innerHTML = chapters.map((chapter, index) => `
-      <button class="chapter-item ${index === selectedChapter ? 'active' : ''}" type="button" data-index="${index}">
-        <span class="chapter-index">Chapter ${index + 1}</span>
-        <strong>${chapter}</strong>
-      </button>
-    `).join("");
+    if (allItems.length === 0) buildAllItems();
+    
+    chapterList.innerHTML = allItems.map((item, index) => {
+      const isActive = selectedChapter === index ? 'active' : '';
+      const display = item.type === 'chapter'
+        ? `<span class="chapter-index">Chapter ${item.index + 1}</span>`
+        : `<span class="chapter-index" style="color:#f59e0b;">📹 Video</span>`;
+      return `
+        <button class="chapter-item ${isActive}" type="button" data-item-index="${index}">
+          ${display}
+          <strong>${item.title}</strong>
+        </button>
+      `;
+    }).join("");
 
     [...chapterList.querySelectorAll(".chapter-item")].forEach(button => {
       button.addEventListener("click", () => {
-        selectedChapter = Number(button.dataset.index || 0);
+        selectedChapter = Number(button.dataset.itemIndex || 0);
         updateSelectedChapter();
       });
     });
   }
 
+  function getCurrentItemVideoPath() {
+    if (selectedChapter >= allItems.length) return chapterVideoUrl();
+    const item = allItems[selectedChapter];
+    if (!item) return chapterVideoUrl();
+    if (item.type === 'uploaded') return item.videoPath;
+    return chapterVideoUrl();
+  }
+
   function updateSelectedChapter() {
-    const chapters = getChapterList();
-    const currentChapter = chapters[selectedChapter] || chapters[0];
-    document.getElementById("chapterNumber").textContent = "Chapter " + (selectedChapter + 1);
-    document.getElementById("chapterTitle").textContent = currentChapter;
-    document.getElementById("chapterVideoSource").src = chapterVideoUrl();
+    if (allItems.length === 0) buildAllItems();
+    if (selectedChapter >= allItems.length) selectedChapter = 0;
+    
+    const item = allItems[selectedChapter];
+    const displayTitle = item.title;
+    const displayLabel = item.type === 'uploaded' ? '📹 Teacher Video' : `Chapter ${item.index + 1}`;
+    
+    document.getElementById("chapterNumber").textContent = displayLabel;
+    document.getElementById("chapterTitle").textContent = displayTitle;
+    document.getElementById("chapterVideoSource").src = getCurrentItemVideoPath();
     const video = document.getElementById("chapterVideo");
     video.load();
-    document.getElementById("summaryText").innerHTML = `<p>Select AI generation to get the summary for <strong>${currentChapter}</strong>.</p>`;
-    document.getElementById("quizList").innerHTML = `<div class="quiz-empty">Questions for <strong>${currentChapter}</strong> will appear here after AI runs.</div>`;
+    document.getElementById("summaryText").innerHTML = `<p>Click "Generate AI Summary" to get the summary for <strong>${displayTitle}</strong>.</p>`;
+    quizQuestions = [];
+    currentQuizIndex = 0;
+    currentQuizAttempts = 0;
+    quizScore = 0;
+    document.getElementById("quizList").innerHTML = `<div class="quiz-empty">Questions for <strong>${displayTitle}</strong> will appear here after AI runs.</div>`;
     renderChapters();
+  }
+
+  function normalizeAnswer(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function isAnswerCorrect(userAnswer, expectedAnswer) {
+    const user = normalizeAnswer(userAnswer);
+    const expected = normalizeAnswer(expectedAnswer);
+    if (!user || !expected) return false;
+    return user === expected || (user.length >= 4 && expected.includes(user));
+  }
+
+  function renderCurrentQuizQuestion() {
+    const quizList = document.getElementById("quizList");
+    if (!Array.isArray(quizQuestions) || quizQuestions.length === 0) {
+      quizList.innerHTML = `<div class="quiz-empty">No AI questions were returned for this chapter.</div>`;
+      return;
+    }
+
+    if (currentQuizIndex >= quizQuestions.length) {
+      quizList.innerHTML = `
+        <div class="quiz-item open">
+          <div class="q">Quiz Completed</div>
+          <div class="a" style="display:block;">You answered ${quizScore} out of ${quizQuestions.length} questions correctly.</div>
+        </div>
+      `;
+      return;
+    }
+
+    const q = quizQuestions[currentQuizIndex];
+    const attemptsLeft = 3 - currentQuizAttempts;
+    quizList.innerHTML = `
+      <div class="quiz-item open" style="cursor:default;">
+        <div class="q">Q${currentQuizIndex + 1}. ${q.question}</div>
+        <form id="quizAnswerForm" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input id="quizAnswerInput" type="text" placeholder="Type your answer" required
+            style="flex:1;min-width:180px;padding:10px;border-radius:10px;border:1px solid rgba(148,163,184,0.5);background:rgba(255,255,255,0.95);">
+          <button type="submit" class="get-started-free" style="padding:10px 14px;">Submit</button>
+        </form>
+        <div id="quizFeedback" class="a" style="display:block;margin-top:8px;">Attempts left: ${attemptsLeft}</div>
+      </div>
+    `;
+
+    const form = document.getElementById("quizAnswerForm");
+    const input = document.getElementById("quizAnswerInput");
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      evaluateCurrentAnswer(input.value);
+    });
+    input.focus();
+  }
+
+  function evaluateCurrentAnswer(userAnswer) {
+    const q = quizQuestions[currentQuizIndex];
+    const feedback = document.getElementById("quizFeedback");
+    if (!q || !feedback) return;
+
+    if (isAnswerCorrect(userAnswer, q.answer)) {
+      quizScore += 1;
+      feedback.innerHTML = `Correct answer. Expected answer: <strong>${q.answer}</strong>. Moving to next question...`;
+      currentQuizIndex += 1;
+      currentQuizAttempts = 0;
+      setTimeout(renderCurrentQuizQuestion, 1200);
+      return;
+    }
+
+    currentQuizAttempts += 1;
+    if (currentQuizAttempts < 3) {
+      const attemptsLeft = 3 - currentQuizAttempts;
+      feedback.textContent = `Wrong answer. Try again. Attempts left: ${attemptsLeft}`;
+      return;
+    }
+
+    feedback.innerHTML = `Wrong answer. Correct answer: <strong>${q.answer}</strong>. Moving to next question...`;
+    currentQuizIndex += 1;
+    currentQuizAttempts = 0;
+    setTimeout(renderCurrentQuizQuestion, 1500);
+  }
+
+  async function loadTeacherUploadedVideos() {
+    uploadedVideos = [];
+    if (!lessonData || !lessonData.name) return;
+    
+    try {
+      const res = await fetch('/api/courses', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load videos');
+
+      const allCourses = Array.isArray(data.courses) ? data.courses : [];
+      const uploadedCourses = allCourses.filter(c => String(c.video_path || "").startsWith('/uploads/'));
+      const subjectMatched = uploadedCourses.filter(c => normalizeAnswer(c.course_name) === normalizeAnswer(lessonData.name));
+      
+      uploadedVideos = subjectMatched;
+      buildAllItems();
+      renderChapters();
+      updateSelectedChapter();
+    } catch (error) {
+      console.error('Failed to load uploaded videos:', error);
+    }
   }
 
   async function generateChapterAI() {
     const btn = document.getElementById("generateAiBtn");
     const summaryText = document.getElementById("summaryText");
     const quizList = document.getElementById("quizList");
-    const chapters = getChapterList();
-    const currentChapter = chapters[selectedChapter] || chapters[0];
+    
+    if (!allItems[selectedChapter]) return;
+    const item = allItems[selectedChapter];
+    const displayTitle = item.title;
 
     btn.textContent = "Generating...";
     btn.disabled = true;
-    summaryText.innerHTML = `<p>Loading AI summary for <strong>${currentChapter}</strong>...</p>`;
-    quizList.innerHTML = `<div class="quiz-empty">Generating questions for ${currentChapter}...</div>`;
+    summaryText.innerHTML = `<p>Loading AI summary for <strong>${displayTitle}</strong>...</p>`;
+    quizList.innerHTML = `<div class="quiz-empty">Generating questions for ${displayTitle}...</div>`;
 
     try {
+      const videoUrl = item.type === 'uploaded' ? item.videoPath : chapterPrompt(displayTitle);
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          videoUrl: chapterPrompt(currentChapter),
+          videoUrl: videoUrl,
           maxQuestions: 5
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to generate AI summary');
 
-      summaryText.innerHTML = data.summary_html || ('<p>' + (data.summary || 'No summary available.') + '</p>');
+      const summaryHtml = data.summary_html || ('<p>' + (data.summary || 'No summary available.') + '</p>');
+      summaryText.innerHTML = data.warning
+        ? summaryHtml + `<p style="margin-top:12px;color:#f59e0b;font-size:0.92rem;">${data.warning}</p>`
+        : summaryHtml;
 
-      if (Array.isArray(data.questions) && data.questions.length > 0) {
-        quizList.innerHTML = data.questions.map((q, i) => `
-          <div class="quiz-item" onclick="this.classList.toggle('open')">
-            <div class="q">Q${i + 1}. ${q.question}</div>
-            <div class="a">Answer: ${q.answer}</div>
-          </div>
-        `).join('');
-      } else {
-        quizList.innerHTML = `<div class="quiz-empty">No AI questions were returned for this chapter.</div>`;
-      }
+      quizQuestions = Array.isArray(data.questions) ? data.questions.filter(q => q && q.question && q.answer) : [];
+      currentQuizIndex = 0;
+      currentQuizAttempts = 0;
+      quizScore = 0;
+      renderCurrentQuizQuestion();
 
       btn.textContent = "Refresh AI Summary";
     } catch (error) {
@@ -693,8 +842,10 @@
   document.getElementById("generateAiBtn").addEventListener("click", generateChapterAI);
   renderAuth();
   renderPageShell();
-  renderChapters();
-  updateSelectedChapter();
+  
+  (async () => {
+    await loadTeacherUploadedVideos();
+  })();
 </script>
 </body>
 </html>

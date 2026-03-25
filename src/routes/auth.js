@@ -404,6 +404,37 @@ router.get("/api/courses", (_req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// API: Teacher Courses (for upload management)
+// ─────────────────────────────────────────────
+router.get("/api/teacher/courses", (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+  if (req.session.userSource !== "teacher") return res.status(403).json({ error: "Teachers only" });
+
+  const teacherId = Number(req.session.userId);
+  db.query(
+    `SELECT c.course_id, c.course_name, c.video_path,
+            c.teacher_id, t.name AS teacher_name
+     FROM ${COURSE_TABLE} c
+     LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
+     WHERE c.teacher_id IS NULL OR c.teacher_id = ?
+     ORDER BY c.course_name ASC`,
+    [teacherId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Failed to load teacher courses" });
+      const courses = (rows || []).map((c) => ({
+        course_id: c.course_id,
+        course_name: c.course_name,
+        video_path: resolveCourseVideoPath(c.course_name, c.video_path),
+        teacher_id: c.teacher_id,
+        teacher_name: c.teacher_name || null,
+        is_owner: Number(c.teacher_id) === teacherId || c.teacher_id === null
+      }));
+      return res.json({ courses });
+    }
+  );
+});
+
+// ─────────────────────────────────────────────
 // API: My Courses
 // ─────────────────────────────────────────────
 router.get("/api/my-courses", (req, res) => {
