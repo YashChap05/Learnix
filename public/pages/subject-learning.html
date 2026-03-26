@@ -79,6 +79,13 @@
         </div>
       </div>
 
+      <div class="subject-panel">
+        <h3>Teacher Uploaded Videos</h3>
+        <div id="teacherVideoList" class="chapter-list teacher-video-list">
+          <div class="quiz-empty">Teacher-uploaded videos for this subject will appear here.</div>
+        </div>
+      </div>
+
 
     </aside>
   </div>
@@ -93,7 +100,7 @@
       name: "DBMS",
       year: "First Year",
       chapterVideos: [
-        "/assets/media/dbms/NFAtoDFA.mp4",
+        "/assets/media/dbms/ch1.mp4",
         "/assets/media/dbms/ch2.mp4",
         "/assets/media/dbms/ch3.mp4",
         "/assets/media/dbms/ch4.mp4",
@@ -121,7 +128,7 @@
       name: "Operating Systems",
       year: "First Year",
       chapterVideos: [
-        "/assets/media/operating-systems/NFAtoDFA.mp4",
+        "/assets/media/operating-systems/ch1.mp4",
         "/assets/media/operating-systems/ch2.mp4",
         "/assets/media/operating-systems/ch3.mp4",
         "/assets/media/operating-systems/ch4.mp4",
@@ -557,6 +564,8 @@
   let selectedChapter = 0;
   let uploadedVideos = [];
   let allItems = [];
+  let chapterItems = [];
+  let teacherVideoItems = [];
 
   let quizQuestions = [];
   let currentQuizIndex = 0;
@@ -571,14 +580,16 @@
   }
 
   function buildAllItems() {
-    allItems = [];
+    chapterItems = [];
+    teacherVideoItems = [];
     const chapters = getChapterList();
     chapters.forEach((ch, idx) => {
-      allItems.push({ type: 'chapter', index: idx, title: ch, videoPath: null });
+      chapterItems.push({ type: 'chapter', index: idx, title: ch, videoPath: null });
     });
     uploadedVideos.forEach((uv) => {
-      allItems.push({ type: 'uploaded', courseId: uv.course_id, title: uv.course_name, videoPath: uv.video_path, teacherName: uv.teacher_name });
+      teacherVideoItems.push({ type: 'uploaded', courseId: uv.course_id, title: uv.course_name, videoPath: uv.video_path, teacherName: uv.teacher_name });
     });
+    allItems = [...chapterItems, ...teacherVideoItems];
   }
 
   function chapterVideoUrl() {
@@ -636,7 +647,7 @@
     const chapterList = document.getElementById("chapterList");
     if (allItems.length === 0) buildAllItems();
     
-    chapterList.innerHTML = allItems.map((item, index) => {
+    chapterList.innerHTML = chapterItems.map((item, index) => {
       const isActive = selectedChapter === index ? 'active' : '';
       const display = item.type === 'chapter'
         ? `<span class="chapter-index">Chapter ${item.index + 1}</span>`
@@ -650,6 +661,39 @@
     }).join("");
 
     [...chapterList.querySelectorAll(".chapter-item")].forEach(button => {
+      button.addEventListener("click", () => {
+        selectedChapter = Number(button.dataset.itemIndex || 0);
+        updateSelectedChapter();
+      });
+    });
+  }
+
+  function renderTeacherVideos() {
+    const teacherVideoList = document.getElementById("teacherVideoList");
+    if (!teacherVideoList) return;
+    if (allItems.length === 0) buildAllItems();
+
+    if (teacherVideoItems.length === 0) {
+      teacherVideoList.innerHTML = `<div class="quiz-empty">Teacher-uploaded videos for this subject will appear here.</div>`;
+      return;
+    }
+
+    teacherVideoList.innerHTML = teacherVideoItems.map((item, index) => {
+      const itemIndex = chapterItems.length + index;
+      const isActive = selectedChapter === itemIndex ? 'active' : '';
+      const teacherMeta = item.teacherName
+        ? `<span class="chapter-index teacher-video-meta">Uploaded by ${item.teacherName}</span>`
+        : `<span class="chapter-index teacher-video-meta">Teacher video</span>`;
+      return `
+        <button class="chapter-item ${isActive}" type="button" data-item-index="${itemIndex}">
+          <span class="chapter-index teacher-video-badge">Teacher Video</span>
+          <strong>${item.title}</strong>
+          ${teacherMeta}
+        </button>
+      `;
+    }).join("");
+
+    [...teacherVideoList.querySelectorAll(".chapter-item")].forEach(button => {
       button.addEventListener("click", () => {
         selectedChapter = Number(button.dataset.itemIndex || 0);
         updateSelectedChapter();
@@ -685,6 +729,7 @@
     quizScore = 0;
     document.getElementById("quizList").innerHTML = `<div class="quiz-empty">Questions for <strong>${displayTitle}</strong> will appear here after AI runs.</div>`;
     renderChapters();
+    renderTeacherVideos();
   }
 
   function normalizeAnswer(value) {
@@ -785,6 +830,7 @@
       uploadedVideos = subjectMatched;
       buildAllItems();
       renderChapters();
+      renderTeacherVideos();
       updateSelectedChapter();
     } catch (error) {
       console.error('Failed to load uploaded videos:', error);

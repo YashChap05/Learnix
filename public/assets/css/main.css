@@ -883,6 +883,22 @@ img { max-width: 100%; }
 }
 
 /* ─── Modal ──────────────────────────────────── */
+.teacher-video-list {
+  gap: 12px;
+}
+
+.teacher-video-badge {
+  color: #f59e0b;
+}
+
+.teacher-video-meta {
+  margin-top: 8px;
+  margin-bottom: 0;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .modal {
   display: none;
   position: fixed;
