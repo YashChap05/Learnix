@@ -385,13 +385,25 @@ router.get("/api/me", (req, res) => {
 // ─────────────────────────────────────────────
 // API: Courses
 // ─────────────────────────────────────────────
-router.get("/api/courses", (_req, res) => {
+router.get("/api/courses", (req, res) => {
+  const deptId = Number(req.session && req.session.user && req.session.user.dept_id);
+  const hasDept = Number.isInteger(deptId) && deptId > 0;
+  const params = [];
+  let whereSql = "";
+
+  if (hasDept) {
+    whereSql = "WHERE c.dept_id = ?";
+    params.push(deptId);
+  }
+
   db.query(
     `SELECT c.course_id, c.course_name, c.credits, d.dept_name, t.name AS teacher_name, c.video_path
      FROM ${COURSE_TABLE} c
      LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = c.dept_id
      LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
+     ${whereSql}
      ORDER BY c.course_name ASC`,
+    params,
     (err, rows) => {
       if (err) return res.status(500).json({ error: "Failed to fetch courses" });
       const courses = (rows || []).map((c) => ({
@@ -411,14 +423,19 @@ router.get("/api/teacher/courses", (req, res) => {
   if (req.session.userSource !== "teacher") return res.status(403).json({ error: "Teachers only" });
 
   const teacherId = Number(req.session.userId);
+  const deptId = Number(req.session && req.session.user && req.session.user.dept_id);
+  if (!Number.isInteger(deptId) || deptId <= 0) {
+    return res.status(400).json({ error: "Teacher department not found" });
+  }
   db.query(
     `SELECT c.course_id, c.course_name, c.video_path,
             c.teacher_id, t.name AS teacher_name
      FROM ${COURSE_TABLE} c
      LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
-     WHERE c.teacher_id IS NULL OR c.teacher_id = ?
+     WHERE c.dept_id = ?
+       AND (c.teacher_id IS NULL OR c.teacher_id = ?)
      ORDER BY c.course_name ASC`,
-    [teacherId],
+    [deptId, teacherId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: "Failed to load teacher courses" });
       const courses = (rows || []).map((c) => ({
@@ -593,6 +610,10 @@ router.get("/api/student-performance", (req, res) => {
 router.get("/api/teacher/students-performance", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
   if (req.session.userSource !== "teacher") return res.status(403).json({ error: "Teachers only" });
+  const deptId = Number(req.session && req.session.user && req.session.user.dept_id);
+  if (!Number.isInteger(deptId) || deptId <= 0) {
+    return res.status(400).json({ error: "Teacher department not found" });
+  }
 
   db.query(
     `SELECT u.id AS student_id, u.username AS student_name, u.email AS student_email,
@@ -602,7 +623,10 @@ router.get("/api/teacher/students-performance", (req, res) => {
      JOIN ${COURSE_TABLE} c ON c.course_id = e.course_id
      LEFT JOIN ${PERFORMANCE_TABLE} p ON p.auth_user_id = e.auth_user_id AND p.course_id = e.course_id
      WHERE LOWER(COALESCE(u.role, 'student')) = 'student'
+       AND u.dept_id = ?
+       AND (c.dept_id = ? OR c.dept_id IS NULL)
      ORDER BY u.username ASC, c.course_name ASC`,
+    [deptId, deptId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: "Failed to load student data" });
       const students = (rows || []).map((row) => {
