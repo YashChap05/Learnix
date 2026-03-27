@@ -49,6 +49,12 @@
       <input type="text" name="department" id="deptInput" placeholder="Department" required>
       <datalist id="deptList"></datalist>
 
+      <div style="text-align:center; color:var(--text-muted); font-weight:700;">OTP is required for login</div>
+      <div style="display:grid; grid-template-columns:1fr auto; gap:12px;">
+        <input type="text" name="otp" id="loginOtpInput" placeholder="Enter 5-digit OTP" pattern="[0-9]{5}" maxlength="5" required>
+        <button type="button" id="sendLoginOtpBtn" class="get-started-free" style="white-space:nowrap;">Send OTP</button>
+      </div>
+
       <button type="submit" class="get-started-free">Log In</button>
     </form>
 
@@ -65,6 +71,24 @@
 
 <script src="/assets/js/main.js"></script>
 <script>
+  const loginError = document.getElementById('loginError');
+
+  function showLoginStatus(message, type) {
+    loginError.textContent = message;
+    loginError.className = 'status-msg ' + (type || '');
+    loginError.style.display = 'block';
+  }
+
+  async function readJsonResponse(res) {
+    const raw = await res.text();
+    try {
+      return raw ? JSON.parse(raw) : {};
+    } catch (_err) {
+      const cleaned = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      throw new Error(cleaned || `Request failed with status ${res.status}`);
+    }
+  }
+
   // Load departments as suggestions
   fetch('/api/departments').then(r => r.json()).then(data => {
     const list = document.getElementById('deptList');
@@ -82,10 +106,44 @@
   // Handle form errors from server redirect
   const params = new URLSearchParams(window.location.search);
   if (params.get('error')) {
-    const err = document.getElementById('loginError');
-    err.textContent = decodeURIComponent(params.get('error'));
-    err.style.display = 'block';
+    showLoginStatus(decodeURIComponent(params.get('error')), 'error');
   }
+
+  function getLoginOtpPayload(includeOtp) {
+    const email = document.getElementById('loginEmail').value.trim();
+    const role = document.querySelector('select[name="role"]').value;
+    const department = document.getElementById('deptInput').value.trim();
+    const otp = document.getElementById('loginOtpInput').value.trim();
+
+    if (!email || !role || !department) {
+      showLoginStatus('Enter email, role, and department before using OTP login.', 'error');
+      return null;
+    }
+    if (includeOtp && !otp) {
+      showLoginStatus('Enter the 5-digit OTP sent to your email.', 'error');
+      return null;
+    }
+
+    return includeOtp ? { email, role, department, otp } : { email, role, department };
+  }
+
+  document.getElementById('sendLoginOtpBtn').addEventListener('click', async () => {
+    const payload = getLoginOtpPayload(false);
+    if (!payload) return;
+
+    try {
+      const res = await fetch('/api/login-otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await readJsonResponse(res);
+      if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
+      showLoginStatus('OTP sent. Enter it in the OTP field, then click Log In.', 'success');
+    } catch (err) {
+      showLoginStatus(err.message || 'Failed to send OTP.', 'error');
+    }
+  });
 </script>
 </body>
 </html>

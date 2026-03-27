@@ -88,6 +88,8 @@ const resolveCourseVideoPath = (courseName, uploadedPath) => {
 const EMAIL_OTP_TTL_MS = 10 * 60 * 1000;
 const EMAIL_OTP_MAX_ATTEMPTS = 5;
 const emailOtpStore = new Map();
+const loginOtpStore = new Map();
+const buildLoginOtpKey = (email, role, deptId) => `${normalizeEmail(email)}::${String(role || "").trim().toLowerCase()}::${Number(deptId) || 0}`;
 
 const hasSmtpConfig = () =>
   !!(process.env.EMAIL_SMTP_HOST && process.env.EMAIL_SMTP_PORT &&
@@ -149,6 +151,146 @@ router.post("/api/email-otp/verify", (req, res) => {
   req.session.verifiedSignupEmail = email;
   req.session.verifiedSignupAt = Date.now();
   return res.json({ message: "Email verified successfully" });
+});
+
+const sendOtpEmail = async (email, otp, purposeText) => {
+  await smtpTransport.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: "Your Learnix verification code",
+    text: `Your Learnix verification code is ${otp}. It expires in 10 minutes. Use it to ${purposeText}.`
+  });
+};
+
+const findLoginUser = ({ email, role, deptId }, callback) => {
+  if (role === "teacher") {
+    db.query(
+      `SELECT teacher_id AS id, name AS username, email, phone_no, dept_id
+       FROM ${TEACHER_TABLE}
+       WHERE email = ? AND dept_id = ?
+       LIMIT 1`,
+      [email, deptId],
+      (err, rows) => {
+        if (err) return callback(err);
+        if (!rows || rows.length === 0) return callback(null, null);
+        return callback(null, {
+          ...rows[0],
+          role: "teacher",
+          userSource: "teacher"
+        });
+      }
+    );
+    return;
+  }
+
+  db.query(
+    `SELECT id, username, email, phone_no, role, dept_id
+     FROM ${AUTH_TABLE}
+     WHERE email = ? AND role = ? AND dept_id = ?
+     LIMIT 1`,
+    [email, role, deptId],
+    (err, rows) => {
+      if (err) return callback(err);
+      if (!rows || rows.length === 0) return callback(null, null);
+      return callback(null, {
+        ...rows[0],
+        userSource: "auth_users"
+      });
+    }
+  );
+};
+
+const completeLoginSession = (req, user, department) => {
+  req.session.userId = user.id;
+  req.session.userSource = user.userSource;
+  req.session.user = {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    phone_no: user.phone_no,
+    role: user.role,
+    dept_id: user.dept_id,
+    department: department || ""
+  };
+};
+
+router.post("/api/login-otp/send", (req, res) => {
+  const email = normalizeEmail(req.body && req.body.email);
+  const role = String((req.body && req.body.role) || "").trim().toLowerCase();
+  const department = String((req.body && req.body.department) || "").trim();
+  const deptId = req.body && req.body.dept_id ? Number(req.body.dept_id) : null;
+
+  if (!email || !role) {
+    return res.status(400).json({ error: "Email and role are required" });
+  }
+  if (!smtpTransport) {
+    return res.status(500).json({ error: "SMTP not configured on server" });
+  }
+
+  resolveDeptId({ deptId, departmentName: department, createIfMissing: false }, (deptErr, resolvedDeptId, resolvedDeptName) => {
+    if (deptErr) return res.status(400).json({ error: "Invalid department selected" });
+
+    findLoginUser({ email, role, deptId: resolvedDeptId }, async (findErr, user) => {
+      if (findErr) return res.status(500).json({ error: "Failed to prepare OTP login" });
+      if (!user) return res.status(404).json({ error: "No account found for these details" });
+
+      const otp = String(Math.floor(10000 + Math.random() * 90000));
+      loginOtpStore.set(buildLoginOtpKey(email, role, resolvedDeptId), {
+        otp,
+        email,
+        role,
+        deptId: resolvedDeptId,
+        department: resolvedDeptName || department,
+        expiresAt: Date.now() + EMAIL_OTP_TTL_MS,
+        attempts: 0
+      });
+
+      try {
+        await sendOtpEmail(email, otp, "log in to Learnix");
+        return res.json({ message: "OTP sent to your email" });
+      } catch (_err) {
+        loginOtpStore.delete(email);
+        return res.status(500).json({ error: "Failed to send OTP email" });
+      }
+    });
+  });
+});
+
+router.post("/api/login-otp/verify", (req, res) => {
+  const email = normalizeEmail(req.body && req.body.email);
+  const otp = String((req.body && req.body.otp) || "").trim();
+  const role = String((req.body && req.body.role) || "").trim().toLowerCase();
+  const department = String((req.body && req.body.department) || "").trim();
+  const deptId = req.body && req.body.dept_id ? Number(req.body.dept_id) : null;
+
+  if (!email || !otp || !role) {
+    return res.status(400).json({ error: "Email, role, and OTP are required" });
+  }
+
+  resolveDeptId({ deptId, departmentName: department, createIfMissing: false }, (deptErr, resolvedDeptId, resolvedDeptName) => {
+    if (deptErr) return res.status(400).json({ error: "Invalid department selected" });
+
+    const otpKey = buildLoginOtpKey(email, role, resolvedDeptId);
+    const data = loginOtpStore.get(otpKey);
+    if (!data) return res.status(400).json({ error: "No active OTP for this email" });
+    if (data.role !== role || Number(data.deptId) !== Number(resolvedDeptId)) {
+      return res.status(400).json({ error: "OTP details do not match this login request" });
+    }
+    if (Date.now() > data.expiresAt) {
+      loginOtpStore.delete(otpKey);
+      return res.status(400).json({ error: "OTP expired. Request a new one." });
+    }
+    if (data.attempts >= EMAIL_OTP_MAX_ATTEMPTS) {
+      loginOtpStore.delete(otpKey);
+      return res.status(400).json({ error: "Too many invalid attempts. Request a new OTP." });
+    }
+    if (data.otp !== otp) {
+      data.attempts += 1;
+      loginOtpStore.set(otpKey, data);
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+    return res.json({ message: "OTP verified. Submit your password to complete login.", department: resolvedDeptName || data.department || department });
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -271,15 +413,32 @@ router.post("/signup", async (req, res) => {
 // Login
 // ─────────────────────────────────────────────
 router.post("/login", (req, res) => {
-  const { username: email, password, role, department, dept_id: deptId } = req.body;
+  const { username: email, password, role, department, dept_id: deptId, otp } = req.body;
   const normalizedRole = role ? String(role).trim().toLowerCase() : "";
 
-  if (!email || !password || !normalizedRole) {
+  if (!email || !password || !normalizedRole || !String(otp || "").trim()) {
     return res.status(400).send("All fields are required");
   }
 
   resolveDeptId({ deptId, departmentName: department, createIfMissing: false }, (deptErr, resolvedDeptId, resolvedDeptName) => {
     if (deptErr) return res.status(400).send("Invalid department selected");
+    const otpKey = buildLoginOtpKey(email, normalizedRole, resolvedDeptId);
+    const otpData = loginOtpStore.get(otpKey);
+
+    if (!otpData) return res.status(400).send("Send an OTP first to continue");
+    if (Date.now() > otpData.expiresAt) {
+      loginOtpStore.delete(otpKey);
+      return res.status(400).send("OTP expired. Request a new one.");
+    }
+    if (otpData.attempts >= EMAIL_OTP_MAX_ATTEMPTS) {
+      loginOtpStore.delete(otpKey);
+      return res.status(400).send("Too many invalid OTP attempts. Request a new OTP.");
+    }
+    if (otpData.otp !== String(otp).trim()) {
+      otpData.attempts += 1;
+      loginOtpStore.set(otpKey, otpData);
+      return res.status(400).send("Invalid OTP");
+    }
 
     if (normalizedRole === "teacher") {
       db.query(
@@ -290,17 +449,16 @@ router.post("/login", (req, res) => {
           if (!results || results.length === 0) return res.status(401).send("Invalid email or password");
           const isMatch = await bcrypt.compare(password, results[0].password);
           if (!isMatch) return res.status(401).send("Invalid email or password");
-          req.session.userId = results[0].teacher_id;
-          req.session.userSource = "teacher";
-          req.session.user = {
+          loginOtpStore.delete(otpKey);
+          completeLoginSession(req, {
             id: results[0].teacher_id,
             username: results[0].name,
             email: results[0].email,
             phone_no: results[0].phone_no,
             role: "teacher",
             dept_id: results[0].dept_id,
-            department: resolvedDeptName || ""
-          };
+            userSource: "teacher"
+          }, resolvedDeptName || "");
           return res.redirect("/pages/home.html");
         }
       );
@@ -315,17 +473,16 @@ router.post("/login", (req, res) => {
         if (!results || results.length === 0) return res.status(401).send("Invalid email or password");
         const isMatch = await bcrypt.compare(password, results[0].password);
         if (!isMatch) return res.status(401).send("Invalid email or password");
-        req.session.userId = results[0].id;
-        req.session.userSource = "auth_users";
-        req.session.user = {
+        loginOtpStore.delete(otpKey);
+        completeLoginSession(req, {
           id: results[0].id,
           username: results[0].username,
           email: results[0].email,
           phone_no: results[0].phone_no,
           role: results[0].role,
           dept_id: results[0].dept_id,
-          department: resolvedDeptName || ""
-        };
+          userSource: "auth_users"
+        }, resolvedDeptName || "");
         return res.redirect("/pages/home.html");
       }
     );
