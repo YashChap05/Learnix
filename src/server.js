@@ -58,6 +58,30 @@ app.get("/Python_vid.html", (_req, res) => res.redirect("/pages/python-video.htm
 app.get("/DS_vid.html", (_req, res) => res.redirect("/pages/ds-video.html"));
 app.get("/UIUX_vid.html", (_req, res) => res.redirect("/pages/uiux-video.html"));
 
+app.use("/uploads", (req, res, next) => {
+  if (!req.session.userId || !req.session.user) {
+    return res.status(401).send("Please log in first");
+  }
+
+  const userDeptId = Number(req.session.user.dept_id);
+  if (!Number.isInteger(userDeptId) || userDeptId <= 0) {
+    return res.status(403).send("Department access is required");
+  }
+
+  const requestedPath = `/uploads${req.path}`;
+  db.query(
+    "SELECT course_id FROM courses WHERE video_path = ? AND dept_id = ? LIMIT 1",
+    [requestedPath, userDeptId],
+    (err, rows) => {
+      if (err) return res.status(500).send("Failed to verify video access");
+      if (!rows || rows.length === 0) {
+        return res.status(403).send("You do not have access to this video");
+      }
+      return next();
+    }
+  );
+});
+
 app.use(express.static(PUBLIC_DIR));
 
 function buildFallbackAiResponse(maxQuestions = 5, reason = "") {
@@ -85,16 +109,20 @@ app.post("/api/teacher/upload-video", (req, res) => {
   uploadVideo.single("courseVideo")(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message || "Upload failed" });
     const teacherId = Number(req.session.userId);
+    const teacherDeptId = Number(req.session.user && req.session.user.dept_id);
     const courseName = req.body && req.body.courseName ? String(req.body.courseName).trim() : "";
     const rawCourseId = req.body && req.body.courseId ? Number(req.body.courseId) : null;
     if (!courseName && !Number.isInteger(rawCourseId)) {
       return res.status(400).json({ error: "courseName or courseId is required" });
     }
     if (!req.file) return res.status(400).json({ error: "courseVideo is required" });
+    if (!Number.isInteger(teacherDeptId) || teacherDeptId <= 0) {
+      return res.status(400).json({ error: "Teacher department not found" });
+    }
 
     const selectSql = Number.isInteger(rawCourseId)
-      ? "SELECT course_id, course_name, teacher_id FROM courses WHERE course_id = ? LIMIT 1"
-      : "SELECT course_id, course_name, teacher_id FROM courses WHERE course_name = ? LIMIT 1";
+      ? "SELECT course_id, course_name, teacher_id, dept_id FROM courses WHERE course_id = ? LIMIT 1"
+      : "SELECT course_id, course_name, teacher_id, dept_id FROM courses WHERE course_name = ? LIMIT 1";
     const selectVal = Number.isInteger(rawCourseId) ? rawCourseId : courseName;
 
     db.query(selectSql, [selectVal], (findErr, courseRows) => {
@@ -107,13 +135,16 @@ app.post("/api/teacher/upload-video", (req, res) => {
       if (course.teacher_id && Number(course.teacher_id) !== teacherId) {
         return res.status(403).json({ error: "This course belongs to another teacher" });
       }
+      if (course.dept_id && Number(course.dept_id) !== teacherDeptId) {
+        return res.status(403).json({ error: "You can only upload videos for your department" });
+      }
 
       const filePath = `/uploads/${req.file.filename}`;
       db.query(
         `UPDATE courses
-         SET video_path = ?, teacher_id = COALESCE(teacher_id, ?)
+         SET video_path = ?, teacher_id = COALESCE(teacher_id, ?), dept_id = COALESCE(dept_id, ?)
          WHERE course_id = ?`,
-        [filePath, teacherId, course.course_id],
+        [filePath, teacherId, teacherDeptId, course.course_id],
         (upErr) => {
           if (upErr) return res.status(500).json({ error: "Upload succeeded but course update failed" });
           return res.json({
