@@ -63,6 +63,10 @@ app.use("/uploads", (req, res, next) => {
     return res.status(401).send("Please log in first");
   }
 
+  if (req.session.user.role === "university") {
+    return next();
+  }
+
   const userDeptId = Number(req.session.user.dept_id);
   if (!Number.isInteger(userDeptId) || userDeptId <= 0) {
     return res.status(403).send("Department access is required");

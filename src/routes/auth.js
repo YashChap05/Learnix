@@ -1,20 +1,17 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
 const db = require("../config/database");
 const path = require("path");
+const fs = require("fs");
 
 const router = express.Router();
 
-// ─────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────
 const AUTH_TABLE = "auth_users";
 const TEACHER_TABLE = "teacher";
+const UNIVERSITY_TABLE = "university";
 const DEPT_TABLE = "dept";
 const COURSE_TABLE = "courses";
 const ENROLL_TABLE = "enrollment";
-const ENROLL_REQUEST_TABLE = "enrollment_requests";
 const PERFORMANCE_TABLE = "student_performance";
 
 const COURSE_VIDEO_MAP = {
@@ -50,448 +47,288 @@ const COURSE_VIDEO_MAP = {
   "computer science": "/pages/subject-detail.html?subject=computer-science"
 };
 
-// ─────────────────────────────────────────────
-// Ensure tables & columns exist on startup
-// ─────────────────────────────────────────────
-const ensureColumn = (table, col, def) => {
-  db.query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [col], (err, rows) => {
-    if (err || (rows && rows.length > 0)) return;
-    db.query(`ALTER TABLE \`${table}\` ADD COLUMN ${col} ${def}`, (alterErr) => {
-      if (alterErr) console.error(`Failed to add ${col} to ${table}:`, alterErr.message);
-    });
-  });
-};
-
-ensureColumn(AUTH_TABLE, "role", "VARCHAR(20) NOT NULL DEFAULT 'student'");
-ensureColumn(AUTH_TABLE, "dept_id", "INT NULL");
-ensureColumn(AUTH_TABLE, "phone_no", "VARCHAR(15) NULL");
-ensureColumn(COURSE_TABLE, "video_path", "VARCHAR(255) NULL");
-ensureColumn(PERFORMANCE_TABLE, "attendance_pct", "DECIMAL(5,2) NULL");
-ensureColumn(PERFORMANCE_TABLE, "marks_obtained", "INT NULL");
-ensureColumn(PERFORMANCE_TABLE, "marks_total", "INT NULL");
-ensureColumn(PERFORMANCE_TABLE, "focus_area", "VARCHAR(255) NULL");
-
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
-const normalizeEmail = (e) => String(e || "").trim().toLowerCase();
-const normalizeCourseName = (n) => String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
+const normalizeText = (value) => String(value || "").trim();
+const normalizeEmail = (value) => normalizeText(value).toLowerCase();
+const normalizeRole = (value) => normalizeText(value).toLowerCase();
+const normalizeCourseName = (value) => normalizeText(value).toLowerCase().replace(/\s+/g, " ");
 
 const resolveCourseVideoPath = (courseName, uploadedPath) => {
   if (uploadedPath) return uploadedPath;
   return COURSE_VIDEO_MAP[normalizeCourseName(courseName)] || "/pages/courses.html";
 };
 
-// ─────────────────────────────────────────────
-// OTP System
-// ─────────────────────────────────────────────
-const EMAIL_OTP_TTL_MS = 10 * 60 * 1000;
-const EMAIL_OTP_MAX_ATTEMPTS = 5;
-const emailOtpStore = new Map();
-const loginOtpStore = new Map();
-const buildLoginOtpKey = (email, role, deptId) => `${normalizeEmail(email)}::${String(role || "").trim().toLowerCase()}::${Number(deptId) || 0}`;
-
-const hasSmtpConfig = () =>
-  !!(process.env.EMAIL_SMTP_HOST && process.env.EMAIL_SMTP_PORT &&
-     process.env.EMAIL_SMTP_USER && process.env.EMAIL_SMTP_PASS && process.env.EMAIL_FROM);
-
-const smtpTransport = hasSmtpConfig()
-  ? nodemailer.createTransport({
-      host: process.env.EMAIL_SMTP_HOST,
-      port: Number(process.env.EMAIL_SMTP_PORT),
-      secure: Number(process.env.EMAIL_SMTP_PORT) === 465,
-      auth: { user: process.env.EMAIL_SMTP_USER, pass: process.env.EMAIL_SMTP_PASS }
-    })
-  : null;
-
-router.post("/api/email-otp/send", async (req, res) => {
-  const email = normalizeEmail(req.body && req.body.email);
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ error: "Valid email is required" });
-  }
-  if (!smtpTransport) {
-    return res.status(500).json({ error: "SMTP not configured on server" });
-  }
-  const otp = String(Math.floor(10000 + Math.random() * 90000));
-  emailOtpStore.set(email, { otp, expiresAt: Date.now() + EMAIL_OTP_TTL_MS, attempts: 0 });
-  try {
-    await smtpTransport.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: "Your Learnix verification code",
-      text: `Your Learnix verification code is ${otp}. It expires in 10 minutes.`
-    });
-    return res.json({ message: "OTP sent to your email" });
-  } catch (err) {
-    emailOtpStore.delete(email);
-    return res.status(500).json({ error: "Failed to send OTP email" });
-  }
-});
-
-router.post("/api/email-otp/verify", (req, res) => {
-  const email = normalizeEmail(req.body && req.body.email);
-  const otp = String((req.body && req.body.otp) || "").trim();
-  if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required" });
-  const data = emailOtpStore.get(email);
-  if (!data) return res.status(400).json({ error: "No active OTP for this email" });
-  if (Date.now() > data.expiresAt) {
-    emailOtpStore.delete(email);
-    return res.status(400).json({ error: "OTP expired. Request a new one." });
-  }
-  if (data.attempts >= EMAIL_OTP_MAX_ATTEMPTS) {
-    emailOtpStore.delete(email);
-    return res.status(400).json({ error: "Too many invalid attempts. Request a new OTP." });
-  }
-  if (data.otp !== otp) {
-    data.attempts += 1;
-    emailOtpStore.set(email, data);
-    return res.status(400).json({ error: "Invalid OTP" });
-  }
-  emailOtpStore.delete(email);
-  req.session.verifiedSignupEmail = email;
-  req.session.verifiedSignupAt = Date.now();
-  return res.json({ message: "Email verified successfully" });
-});
-
-const sendOtpEmail = async (email, otp, purposeText) => {
-  await smtpTransport.sendMail({
-    from: process.env.EMAIL_FROM,
-    to: email,
-    subject: "Your Learnix verification code",
-    text: `Your Learnix verification code is ${otp}. It expires in 10 minutes. Use it to ${purposeText}.`
-  });
-};
-
-const findLoginUser = ({ email, role, deptId }, callback) => {
-  if (role === "teacher") {
-    db.query(
-      `SELECT teacher_id AS id, name AS username, email, phone_no, dept_id
-       FROM ${TEACHER_TABLE}
-       WHERE email = ? AND dept_id = ?
-       LIMIT 1`,
-      [email, deptId],
-      (err, rows) => {
-        if (err) return callback(err);
-        if (!rows || rows.length === 0) return callback(null, null);
-        return callback(null, {
-          ...rows[0],
-          role: "teacher",
-          userSource: "teacher"
-        });
-      }
-    );
-    return;
-  }
+const resolveDeptId = ({ branch, createIfMissing }, callback) => {
+  const branchName = normalizeText(branch);
+  if (!branchName) return callback(null, null, "");
 
   db.query(
-    `SELECT id, username, email, phone_no, role, dept_id
-     FROM ${AUTH_TABLE}
-     WHERE email = ? AND role = ? AND dept_id = ?
-     LIMIT 1`,
-    [email, role, deptId],
+    `SELECT dept_id, dept_name FROM ${DEPT_TABLE} WHERE dept_name = ? LIMIT 1`,
+    [branchName],
     (err, rows) => {
       if (err) return callback(err);
-      if (!rows || rows.length === 0) return callback(null, null);
-      return callback(null, {
-        ...rows[0],
-        userSource: "auth_users"
-      });
+      if (rows && rows.length > 0) return callback(null, rows[0].dept_id, rows[0].dept_name);
+      if (!createIfMissing) return callback(new Error("Branch not found"));
+      db.query(
+        `INSERT INTO ${DEPT_TABLE} (dept_name) VALUES (?)`,
+        [branchName],
+        (insertErr, result) => {
+          if (insertErr) return callback(insertErr);
+          return callback(null, result.insertId, branchName);
+        }
+      );
     }
   );
 };
 
-const completeLoginSession = (req, user, department) => {
+const findUniversityByName = (universityName, callback) => {
+  const name = normalizeText(universityName);
+  if (!name) return callback(new Error("University is required"));
+  db.query(
+    `SELECT university_id, university_name FROM ${UNIVERSITY_TABLE} WHERE university_name = ? LIMIT 1`,
+    [name],
+    (err, rows) => {
+      if (err) return callback(err);
+      if (!rows || rows.length === 0) return callback(new Error("University account not found"));
+      return callback(null, rows[0]);
+    }
+  );
+};
+
+const requireUniversity = (req, res) => {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return false;
+  }
+  if (!req.session.user || req.session.user.role !== "university") {
+    res.status(403).json({ error: "University access only" });
+    return false;
+  }
+  return true;
+};
+
+const completeLoginSession = (req, user) => {
   req.session.userId = user.id;
   req.session.userSource = user.userSource;
-  req.session.user = {
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    phone_no: user.phone_no,
-    role: user.role,
-    dept_id: user.dept_id,
-    department: department || ""
-  };
+  req.session.user = user;
 };
 
-router.post("/api/login-otp/send", (req, res) => {
-  const email = normalizeEmail(req.body && req.body.email);
-  const role = String((req.body && req.body.role) || "").trim().toLowerCase();
-  const department = String((req.body && req.body.department) || "").trim();
-  const deptId = req.body && req.body.dept_id ? Number(req.body.dept_id) : null;
-
-  if (!email || !role) {
-    return res.status(400).json({ error: "Email and role are required" });
-  }
-  if (!smtpTransport) {
-    return res.status(500).json({ error: "SMTP not configured on server" });
-  }
-
-  resolveDeptId({ deptId, departmentName: department, createIfMissing: false }, (deptErr, resolvedDeptId, resolvedDeptName) => {
-    if (deptErr) return res.status(400).json({ error: "Invalid department selected" });
-
-    findLoginUser({ email, role, deptId: resolvedDeptId }, async (findErr, user) => {
-      if (findErr) return res.status(500).json({ error: "Failed to prepare OTP login" });
-      if (!user) return res.status(404).json({ error: "No account found for these details" });
-
-      const otp = String(Math.floor(10000 + Math.random() * 90000));
-      loginOtpStore.set(buildLoginOtpKey(email, role, resolvedDeptId), {
-        otp,
-        email,
-        role,
-        deptId: resolvedDeptId,
-        department: resolvedDeptName || department,
-        expiresAt: Date.now() + EMAIL_OTP_TTL_MS,
-        attempts: 0
-      });
-
-      try {
-        await sendOtpEmail(email, otp, "log in to Learnix");
-        return res.json({ message: "OTP sent to your email" });
-      } catch (_err) {
-        loginOtpStore.delete(email);
-        return res.status(500).json({ error: "Failed to send OTP email" });
-      }
-    });
-  });
-});
-
-router.post("/api/login-otp/verify", (req, res) => {
-  const email = normalizeEmail(req.body && req.body.email);
-  const otp = String((req.body && req.body.otp) || "").trim();
-  const role = String((req.body && req.body.role) || "").trim().toLowerCase();
-  const department = String((req.body && req.body.department) || "").trim();
-  const deptId = req.body && req.body.dept_id ? Number(req.body.dept_id) : null;
-
-  if (!email || !otp || !role) {
-    return res.status(400).json({ error: "Email, role, and OTP are required" });
-  }
-
-  resolveDeptId({ deptId, departmentName: department, createIfMissing: false }, (deptErr, resolvedDeptId, resolvedDeptName) => {
-    if (deptErr) return res.status(400).json({ error: "Invalid department selected" });
-
-    const otpKey = buildLoginOtpKey(email, role, resolvedDeptId);
-    const data = loginOtpStore.get(otpKey);
-    if (!data) return res.status(400).json({ error: "No active OTP for this email" });
-    if (data.role !== role || Number(data.deptId) !== Number(resolvedDeptId)) {
-      return res.status(400).json({ error: "OTP details do not match this login request" });
-    }
-    if (Date.now() > data.expiresAt) {
-      loginOtpStore.delete(otpKey);
-      return res.status(400).json({ error: "OTP expired. Request a new one." });
-    }
-    if (data.attempts >= EMAIL_OTP_MAX_ATTEMPTS) {
-      loginOtpStore.delete(otpKey);
-      return res.status(400).json({ error: "Too many invalid attempts. Request a new OTP." });
-    }
-    if (data.otp !== otp) {
-      data.attempts += 1;
-      loginOtpStore.set(otpKey, data);
-      return res.status(400).json({ error: "Invalid OTP" });
-    }
-    return res.json({ message: "OTP verified. Submit your password to complete login.", department: resolvedDeptName || data.department || department });
-  });
-});
-
-// ─────────────────────────────────────────────
-// Department resolver
-// ─────────────────────────────────────────────
-const resolveDeptId = ({ deptId, departmentName, createIfMissing }, callback) => {
-  const name = departmentName ? String(departmentName).trim() : "";
-  const id = deptId ? Number(deptId) : null;
-
-  if (Number.isInteger(id) && id > 0) {
-    db.query(`SELECT dept_id FROM ${DEPT_TABLE} WHERE dept_id = ?`, [id], (err, rows) => {
-      if (err) return callback(err);
-      if (!rows || rows.length === 0) return callback(new Error("Invalid department"));
-      return callback(null, rows[0].dept_id, name);
-    });
-    return;
-  }
-
-  if (!name) return callback(new Error("Department is required"));
-
-  db.query(`SELECT dept_id, dept_name FROM ${DEPT_TABLE} WHERE dept_name = ?`, [name], (err, rows) => {
-    if (err) return callback(err);
-    if (rows && rows.length > 0) return callback(null, rows[0].dept_id, rows[0].dept_name);
-    if (!createIfMissing) return callback(new Error("Invalid department selected"));
-    db.query(`INSERT INTO ${DEPT_TABLE} (dept_name) VALUES (?)`, [name], (insErr, result) => {
-      if (insErr) return callback(insErr);
-      return callback(null, result.insertId, name);
-    });
-  });
-};
-
-// ─────────────────────────────────────────────
-// GET /api/departments
-// ─────────────────────────────────────────────
 router.get("/api/departments", (_req, res) => {
   db.query(`SELECT dept_id, dept_name FROM ${DEPT_TABLE} ORDER BY dept_name ASC`, (err, rows) => {
-    if (err) return res.status(500).json({ error: "Failed to load departments" });
+    if (err) return res.status(500).json({ error: "Failed to load branches" });
     return res.json({ departments: rows || [] });
   });
 });
 
-// ─────────────────────────────────────────────
-// Signup
-// ─────────────────────────────────────────────
-router.post("/signup", async (req, res) => {
-  const { username, email, phone_no: phoneNo, password, confirmPassword, role, department, dept_id: deptId } = req.body;
-  const normalizedEmail = normalizeEmail(email);
-  const normalizedRole = role ? String(role).trim().toLowerCase() : "";
-  const normalizedPhone = phoneNo ? String(phoneNo).trim() : "";
+router.get("/api/universities", (_req, res) => {
+  db.query(`SELECT university_id, university_name FROM ${UNIVERSITY_TABLE} ORDER BY university_name ASC`, (err, rows) => {
+    if (err) return res.status(500).json({ error: "Failed to load universities" });
+    return res.json({ universities: rows || [] });
+  });
+});
 
-  if (!username || !normalizedEmail || !normalizedPhone || !password || !confirmPassword || !normalizedRole) {
-    return res.status(400).send("All fields are required");
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-    return res.status(400).send("Invalid email format");
-  }
-  if (!/^\d{10}$/.test(normalizedPhone)) {
-    return res.status(400).send("Phone number must be exactly 10 digits");
-  }
-  if (!["student", "teacher"].includes(normalizedRole)) {
+router.post("/signup", async (req, res) => {
+  const role = normalizeRole(req.body && req.body.role);
+  const password = normalizeText(req.body && req.body.password);
+  const confirmPassword = normalizeText(req.body && req.body.confirmPassword);
+
+  if (!["student", "teacher", "university"].includes(role)) {
     return res.status(400).send("Invalid role selected");
+  }
+  if (!password || password.length < 6) {
+    return res.status(400).send("Password must be at least 6 characters");
   }
   if (password !== confirmPassword) {
     return res.status(400).send("Passwords do not match");
   }
 
-  // OTP verification check (bypass if BYPASS_OTP is enabled)
-  const bypassOtp = process.env.BYPASS_OTP === "true";
-  if (!bypassOtp) {
-    const verifiedEmail = normalizeEmail(req.session && req.session.verifiedSignupEmail);
-    const verifiedAt = req.session && req.session.verifiedSignupAt ? Number(req.session.verifiedSignupAt) : 0;
-    if (!verifiedEmail || verifiedEmail !== normalizedEmail || !verifiedAt || Date.now() - verifiedAt > EMAIL_OTP_TTL_MS) {
-      return res.status(400).send("Please verify your email with the 5-digit OTP before signing up");
-    }
-  } else {
-    // Bypass: auto-verify email
-    req.session.verifiedSignupEmail = normalizedEmail;
-    req.session.verifiedSignupAt = Date.now();
-  }
-
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  resolveDeptId({ deptId, departmentName: department, createIfMissing: true }, (deptErr, resolvedDeptId) => {
-    if (deptErr) return res.status(400).send(deptErr.message);
+  if (role === "university") {
+    const universityName = normalizeText(req.body && req.body.university_name);
+    const email = normalizeEmail(req.body && req.body.email);
+    const principalName = normalizeText(req.body && req.body.principal_name);
 
-    if (normalizedRole === "teacher") {
-      db.query(
-        `INSERT INTO ${TEACHER_TABLE} (name, email, password, phone_no, dept_id) VALUES (?, ?, ?, ?, ?)`,
-        [username, normalizedEmail, hashedPassword, normalizedPhone, resolvedDeptId],
-        (err) => {
-          if (err) {
-            if (err.code === "ER_DUP_ENTRY") return res.status(400).send("Email already registered");
-            return res.status(500).send("Error during teacher registration: " + err.sqlMessage);
-          }
-          delete req.session.verifiedSignupEmail;
-          delete req.session.verifiedSignupAt;
-          return res.redirect("/pages/login.html");
-        }
-      );
-      return;
+    if (!universityName || !email || !principalName) {
+      return res.status(400).send("University name, email, and principal name are required");
     }
 
     db.query(
-      `INSERT INTO ${AUTH_TABLE} (username, email, phone_no, role, dept_id, password) VALUES (?, ?, ?, ?, ?, ?)`,
-      [username, normalizedEmail, normalizedPhone, normalizedRole, resolvedDeptId, hashedPassword],
+      `INSERT INTO ${UNIVERSITY_TABLE} (university_name, email, principal_name, password) VALUES (?, ?, ?, ?)`,
+      [universityName, email, principalName, hashedPassword],
       (err) => {
         if (err) {
-          if (err.code === "ER_DUP_ENTRY") return res.status(400).send("Email already registered");
-          return res.status(500).send("Error during registration: " + err.sqlMessage);
+          if (err.code === "ER_DUP_ENTRY") return res.status(400).send("University or email already registered");
+          return res.status(500).send("Error during university registration");
         }
-        delete req.session.verifiedSignupEmail;
-        delete req.session.verifiedSignupAt;
         return res.redirect("/pages/login.html");
       }
     );
+    return;
+  }
+
+  const name = normalizeText(req.body && req.body.username);
+  const email = normalizeEmail(req.body && req.body.email);
+  const branch = normalizeText(req.body && req.body.branch);
+  const universityName = normalizeText(req.body && req.body.university_name);
+  const subject = normalizeText(req.body && req.body.subject);
+
+  if (!name || !email || !branch || !universityName) {
+    return res.status(400).send("Name, email, branch, and university are required");
+  }
+
+  findUniversityByName(universityName, (universityErr, university) => {
+    if (universityErr) return res.status(400).send(universityErr.message);
+    resolveDeptId({ branch, createIfMissing: true }, (deptErr, deptId) => {
+      if (deptErr) return res.status(400).send("Invalid branch");
+
+      if (role === "teacher") {
+        db.query(
+          `INSERT INTO ${TEACHER_TABLE} (name, email, dept_id, university_id, subject, password) VALUES (?, ?, ?, ?, ?, ?)`,
+          [name, email, deptId, university.university_id, subject || null, hashedPassword],
+          (err) => {
+            if (err) {
+              if (err.code === "ER_DUP_ENTRY") return res.status(400).send("Email already registered");
+              return res.status(500).send("Error during teacher registration");
+            }
+            return res.redirect("/pages/login.html");
+          }
+        );
+        return;
+      }
+
+      db.query(
+        `INSERT INTO ${AUTH_TABLE} (username, email, role, dept_id, university_id, password) VALUES (?, ?, 'student', ?, ?, ?)`,
+        [name, email, deptId, university.university_id, hashedPassword],
+        (err) => {
+          if (err) {
+            if (err.code === "ER_DUP_ENTRY") return res.status(400).send("Email already registered");
+            return res.status(500).send("Error during student registration");
+          }
+          return res.redirect("/pages/login.html");
+        }
+      );
+    });
   });
 });
 
-// ─────────────────────────────────────────────
-// Login
-// ─────────────────────────────────────────────
 router.post("/login", (req, res) => {
-  const { username: email, password, role, department, dept_id: deptId, otp } = req.body;
-  const normalizedRole = role ? String(role).trim().toLowerCase() : "";
+  const role = normalizeRole(req.body && req.body.role);
+  const email = normalizeEmail(req.body && req.body.username);
+  const password = normalizeText(req.body && req.body.password);
+  const branch = normalizeText(req.body && req.body.branch);
 
-  if (!email || !password || !normalizedRole || !String(otp || "").trim()) {
+  if (!role || !email || !password) {
     return res.status(400).send("All fields are required");
   }
 
-  resolveDeptId({ deptId, departmentName: department, createIfMissing: false }, (deptErr, resolvedDeptId, resolvedDeptName) => {
-    if (deptErr) return res.status(400).send("Invalid department selected");
-    const otpKey = buildLoginOtpKey(email, normalizedRole, resolvedDeptId);
-    const otpData = loginOtpStore.get(otpKey);
+  if (role === "university") {
+    db.query(
+      `SELECT university_id, university_name, email, principal_name, password
+       FROM ${UNIVERSITY_TABLE}
+       WHERE email = ?
+       LIMIT 1`,
+      [email],
+      async (err, rows) => {
+        if (err) return res.status(500).send("Error during login");
+        if (!rows || rows.length === 0) return res.status(401).send("Invalid email or password");
+        const match = await bcrypt.compare(password, rows[0].password);
+        if (!match) return res.status(401).send("Invalid email or password");
 
-    if (!otpData) return res.status(400).send("Send an OTP first to continue");
-    if (Date.now() > otpData.expiresAt) {
-      loginOtpStore.delete(otpKey);
-      return res.status(400).send("OTP expired. Request a new one.");
-    }
-    if (otpData.attempts >= EMAIL_OTP_MAX_ATTEMPTS) {
-      loginOtpStore.delete(otpKey);
-      return res.status(400).send("Too many invalid OTP attempts. Request a new OTP.");
-    }
-    if (otpData.otp !== String(otp).trim()) {
-      otpData.attempts += 1;
-      loginOtpStore.set(otpKey, otpData);
-      return res.status(400).send("Invalid OTP");
-    }
+        completeLoginSession(req, {
+          id: rows[0].university_id,
+          username: rows[0].university_name,
+          email: rows[0].email,
+          role: "university",
+          dept_id: null,
+          department: "",
+          university_id: rows[0].university_id,
+          university_name: rows[0].university_name,
+          principal_name: rows[0].principal_name,
+          subject: null,
+          userSource: "university"
+        });
+        return res.redirect("/pages/home.html");
+      }
+    );
+    return;
+  }
 
-    if (normalizedRole === "teacher") {
+  if (role === "teacher") {
+    if (!branch) return res.status(400).send("Branch is required");
+    resolveDeptId({ branch, createIfMissing: false }, (deptErr, deptId, deptName) => {
+      if (deptErr || !deptId) return res.status(400).send("Invalid branch selected");
       db.query(
-        `SELECT teacher_id, name, email, phone_no, dept_id, password FROM ${TEACHER_TABLE} WHERE email = ? AND dept_id = ?`,
-        [email, resolvedDeptId],
-        async (err, results) => {
+        `SELECT t.teacher_id, t.name, t.email, t.subject, t.password, t.dept_id, t.university_id,
+                d.dept_name, u.university_name
+         FROM ${TEACHER_TABLE} t
+         LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = t.dept_id
+         LEFT JOIN ${UNIVERSITY_TABLE} u ON u.university_id = t.university_id
+         WHERE t.email = ? AND t.dept_id = ?
+         LIMIT 1`,
+        [email, deptId],
+        async (err, rows) => {
           if (err) return res.status(500).send("Error during login");
-          if (!results || results.length === 0) return res.status(401).send("Invalid email or password");
-          const isMatch = await bcrypt.compare(password, results[0].password);
-          if (!isMatch) return res.status(401).send("Invalid email or password");
-          loginOtpStore.delete(otpKey);
+          if (!rows || rows.length === 0) return res.status(401).send("Invalid email or password");
+          const match = await bcrypt.compare(password, rows[0].password);
+          if (!match) return res.status(401).send("Invalid email or password");
+
           completeLoginSession(req, {
-            id: results[0].teacher_id,
-            username: results[0].name,
-            email: results[0].email,
-            phone_no: results[0].phone_no,
+            id: rows[0].teacher_id,
+            username: rows[0].name,
+            email: rows[0].email,
             role: "teacher",
-            dept_id: results[0].dept_id,
+            dept_id: rows[0].dept_id,
+            department: deptName || rows[0].dept_name || "",
+            university_id: rows[0].university_id,
+            university_name: rows[0].university_name || "",
+            principal_name: null,
+            subject: rows[0].subject || null,
             userSource: "teacher"
-          }, resolvedDeptName || "");
+          });
           return res.redirect("/pages/home.html");
         }
       );
-      return;
-    }
+    });
+    return;
+  }
 
+  if (!branch) return res.status(400).send("Branch is required");
+  resolveDeptId({ branch, createIfMissing: false }, (deptErr, deptId, deptName) => {
+    if (deptErr || !deptId) return res.status(400).send("Invalid branch selected");
     db.query(
-      `SELECT id, username, email, phone_no, role, dept_id, password FROM ${AUTH_TABLE} WHERE email = ? AND role = ? AND dept_id = ?`,
-      [email, normalizedRole, resolvedDeptId],
-      async (err, results) => {
+      `SELECT u.id, u.username, u.email, u.role, u.password, u.dept_id, u.university_id,
+              d.dept_name, uni.university_name
+       FROM ${AUTH_TABLE} u
+       LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = u.dept_id
+       LEFT JOIN ${UNIVERSITY_TABLE} uni ON uni.university_id = u.university_id
+       WHERE u.email = ? AND u.role = 'student' AND u.dept_id = ?
+       LIMIT 1`,
+      [email, deptId],
+      async (err, rows) => {
         if (err) return res.status(500).send("Error during login");
-        if (!results || results.length === 0) return res.status(401).send("Invalid email or password");
-        const isMatch = await bcrypt.compare(password, results[0].password);
-        if (!isMatch) return res.status(401).send("Invalid email or password");
-        loginOtpStore.delete(otpKey);
+        if (!rows || rows.length === 0) return res.status(401).send("Invalid email or password");
+        const match = await bcrypt.compare(password, rows[0].password);
+        if (!match) return res.status(401).send("Invalid email or password");
+
         completeLoginSession(req, {
-          id: results[0].id,
-          username: results[0].username,
-          email: results[0].email,
-          phone_no: results[0].phone_no,
-          role: results[0].role,
-          dept_id: results[0].dept_id,
+          id: rows[0].id,
+          username: rows[0].username,
+          email: rows[0].email,
+          role: "student",
+          dept_id: rows[0].dept_id,
+          department: deptName || rows[0].dept_name || "",
+          university_id: rows[0].university_id,
+          university_name: rows[0].university_name || "",
+          principal_name: null,
+          subject: null,
           userSource: "auth_users"
-        }, resolvedDeptName || "");
+        });
         return res.redirect("/pages/home.html");
       }
     );
   });
 });
 
-// ─────────────────────────────────────────────
-// Protected page routes
-// ─────────────────────────────────────────────
 router.get("/dashboard", (req, res) => {
   if (!req.session.userId) return res.redirect("/pages/login.html");
   res.sendFile(path.join(__dirname, "..", "..", "public", "pages", "dashboard.html"));
@@ -502,59 +339,25 @@ router.get("/profile", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "..", "public", "pages", "profile.html"));
 });
 
-// ─────────────────────────────────────────────
-// API: Me
-// ─────────────────────────────────────────────
 router.get("/api/me", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-  if (req.session.user) return res.json(req.session.user);
-
-  if (req.session.userSource === "teacher") {
-    db.query(
-      `SELECT t.teacher_id AS id, t.name AS username, t.email, t.phone_no, 'teacher' AS role, t.dept_id, d.dept_name AS department
-       FROM ${TEACHER_TABLE} t LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = t.dept_id
-       WHERE t.teacher_id = ?`,
-      [req.session.userId],
-      (err, results) => {
-        if (err) return res.status(500).json({ error: "Failed to fetch user" });
-        if (!results || results.length === 0) return res.status(404).json({ error: "User not found" });
-        req.session.user = results[0];
-        return res.json(results[0]);
-      }
-    );
-    return;
-  }
-
-  db.query(
-    `SELECT u.id, u.username, u.email, u.phone_no, u.role, u.dept_id, d.dept_name AS department
-     FROM ${AUTH_TABLE} u LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = u.dept_id
-     WHERE u.id = ?`,
-    [req.session.userId],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: "Failed to fetch user" });
-      if (!results || results.length === 0) return res.status(404).json({ error: "User not found" });
-      req.session.user = results[0];
-      return res.json(results[0]);
-    }
-  );
+  return res.json(req.session.user);
 });
 
-// ─────────────────────────────────────────────
-// API: Courses
-// ─────────────────────────────────────────────
 router.get("/api/courses", (req, res) => {
-  const deptId = Number(req.session && req.session.user && req.session.user.dept_id);
-  const hasDept = Number.isInteger(deptId) && deptId > 0;
+  const user = req.session && req.session.user;
+  const deptId = Number(user && user.dept_id);
+  const isUniversityUser = user && user.role === "university";
   const params = [];
   let whereSql = "";
 
-  if (hasDept) {
+  if (!isUniversityUser && Number.isInteger(deptId) && deptId > 0) {
     whereSql = "WHERE c.dept_id = ?";
     params.push(deptId);
   }
 
   db.query(
-    `SELECT c.course_id, c.course_name, c.credits, d.dept_name, t.name AS teacher_name, c.video_path
+    `SELECT c.course_id, c.course_name, c.credits, c.video_path, d.dept_name, t.name AS teacher_name
      FROM ${COURSE_TABLE} c
      LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = c.dept_id
      LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
@@ -563,61 +366,48 @@ router.get("/api/courses", (req, res) => {
     params,
     (err, rows) => {
       if (err) return res.status(500).json({ error: "Failed to fetch courses" });
-      const courses = (rows || []).map((c) => ({
-        ...c,
-        video_path: resolveCourseVideoPath(c.course_name, c.video_path)
-      }));
-      return res.json({ courses });
+      return res.json({
+        courses: (rows || []).map((course) => ({
+          ...course,
+          video_path: resolveCourseVideoPath(course.course_name, course.video_path)
+        }))
+      });
     }
   );
 });
 
-// ─────────────────────────────────────────────
-// API: Teacher Courses (for upload management)
-// ─────────────────────────────────────────────
 router.get("/api/teacher/courses", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-  if (req.session.userSource !== "teacher") return res.status(403).json({ error: "Teachers only" });
+  if (!req.session.user || req.session.user.role !== "teacher") return res.status(403).json({ error: "Teachers only" });
 
   const teacherId = Number(req.session.userId);
-  const deptId = Number(req.session && req.session.user && req.session.user.dept_id);
-  if (!Number.isInteger(deptId) || deptId <= 0) {
-    return res.status(400).json({ error: "Teacher department not found" });
-  }
+  const deptId = Number(req.session.user.dept_id);
+
   db.query(
-    `SELECT c.course_id, c.course_name, c.video_path,
-            c.teacher_id, t.name AS teacher_name
+    `SELECT c.course_id, c.course_name, c.video_path, c.teacher_id, t.name AS teacher_name
      FROM ${COURSE_TABLE} c
      LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
-     WHERE c.dept_id = ?
-       AND (c.teacher_id IS NULL OR c.teacher_id = ?)
+     WHERE c.dept_id = ? AND (c.teacher_id IS NULL OR c.teacher_id = ?)
      ORDER BY c.course_name ASC`,
     [deptId, teacherId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: "Failed to load teacher courses" });
-      const courses = (rows || []).map((c) => ({
-        course_id: c.course_id,
-        course_name: c.course_name,
-        video_path: resolveCourseVideoPath(c.course_name, c.video_path),
-        teacher_id: c.teacher_id,
-        teacher_name: c.teacher_name || null,
-        is_owner: Number(c.teacher_id) === teacherId || c.teacher_id === null
-      }));
-      return res.json({ courses });
+      return res.json({
+        courses: (rows || []).map((course) => ({
+          ...course,
+          video_path: resolveCourseVideoPath(course.course_name, course.video_path)
+        }))
+      });
     }
   );
 });
 
-// ─────────────────────────────────────────────
-// API: My Courses
-// ─────────────────────────────────────────────
 router.get("/api/my-courses", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-  if (req.session.userSource === "teacher") return res.json({ courses: [] });
+  if (!req.session.user || req.session.user.role !== "student") return res.json({ courses: [] });
 
   db.query(
-    `SELECT c.course_id, c.course_name, c.credits, d.dept_name, t.name AS teacher_name,
-            e.enrollment_date, c.video_path
+    `SELECT c.course_id, c.course_name, c.credits, c.video_path, d.dept_name, t.name AS teacher_name, e.enrollment_date
      FROM ${ENROLL_TABLE} e
      JOIN ${COURSE_TABLE} c ON c.course_id = e.course_id
      LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = c.dept_id
@@ -627,48 +417,53 @@ router.get("/api/my-courses", (req, res) => {
     [req.session.userId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: "Failed to load enrolled courses" });
-      const courses = (rows || []).map((c) => ({
-        ...c,
-        video_path: resolveCourseVideoPath(c.course_name, c.video_path)
-      }));
-      return res.json({ courses });
+      return res.json({
+        courses: (rows || []).map((course) => ({
+          ...course,
+          video_path: resolveCourseVideoPath(course.course_name, course.video_path)
+        }))
+      });
     }
   );
 });
 
-// ─────────────────────────────────────────────
-// API: Enroll
-// ─────────────────────────────────────────────
 router.post("/api/enroll", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Please log in first" });
-  if (req.session.userSource === "teacher") return res.status(403).json({ error: "Teachers cannot enroll in courses" });
+  if (!req.session.user || req.session.user.role !== "student") {
+    return res.status(403).json({ error: "Only students can enroll in courses" });
+  }
 
-  const courseName = req.body && req.body.courseName ? String(req.body.courseName).trim() : "";
+  const courseName = normalizeText(req.body && req.body.courseName);
   if (!courseName) return res.status(400).json({ error: "courseName is required" });
 
-  const userId = req.session.userId;
+  const userId = Number(req.session.userId);
+  const deptId = Number(req.session.user.dept_id) || null;
 
   db.query(`SELECT course_id, course_name FROM ${COURSE_TABLE} WHERE course_name = ? LIMIT 1`, [courseName], (err, courseRows) => {
     if (err) return res.status(500).json({ error: "Failed to fetch course" });
 
-    const proceed = (courseId, cName) => {
+    const enrollStudent = (courseId, actualCourseName) => {
       db.query(
         `SELECT 1 FROM ${ENROLL_TABLE} WHERE auth_user_id = ? AND course_id = ? LIMIT 1`,
         [userId, courseId],
-        (checkErr, existing) => {
+        (checkErr, existingRows) => {
           if (checkErr) return res.status(500).json({ error: "Failed to check enrollment" });
-          if (existing && existing.length > 0) {
+          if (existingRows && existingRows.length > 0) {
             return res.json({ message: "Already enrolled", alreadyEnrolled: true });
           }
+
           db.query(
             `INSERT INTO ${ENROLL_TABLE} (auth_user_id, course_id, enrollment_date) VALUES (?, ?, CURDATE())`,
             [userId, courseId],
-            (insErr) => {
-              if (insErr) return res.status(500).json({ error: "Failed to enroll" });
+            (insertErr) => {
+              if (insertErr) return res.status(500).json({ error: "Failed to enroll" });
               return res.json({
                 message: "Enrollment successful",
                 alreadyEnrolled: false,
-                enrollment: { course_name: cName, video_path: resolveCourseVideoPath(cName, null) }
+                enrollment: {
+                  course_name: actualCourseName,
+                  video_path: resolveCourseVideoPath(actualCourseName, null)
+                }
               });
             }
           );
@@ -677,23 +472,20 @@ router.post("/api/enroll", (req, res) => {
     };
 
     if (courseRows && courseRows.length > 0) {
-      return proceed(courseRows[0].course_id, courseRows[0].course_name);
+      return enrollStudent(courseRows[0].course_id, courseRows[0].course_name);
     }
-    // Create course if not found
+
     db.query(
-      `INSERT INTO ${COURSE_TABLE} (course_name, credits) VALUES (?, 3)`,
-      [courseName],
-      (insErr, result) => {
-        if (insErr) return res.status(500).json({ error: "Failed to create course" });
-        return proceed(result.insertId, courseName);
+      `INSERT INTO ${COURSE_TABLE} (course_name, credits, dept_id) VALUES (?, 3, ?)`,
+      [courseName, deptId],
+      (insertErr, result) => {
+        if (insertErr) return res.status(500).json({ error: "Failed to create course" });
+        return enrollStudent(result.insertId, courseName);
       }
     );
   });
 });
 
-// ─────────────────────────────────────────────
-// API: Student Performance
-// ─────────────────────────────────────────────
 const getRandomPerformanceSample = () => {
   const r = Math.random();
   let aMin = 55, aMax = 75, sMin = 40, sMax = 60;
@@ -701,20 +493,19 @@ const getRandomPerformanceSample = () => {
   else if (r > 0.75) { aMin = 85; aMax = 98; sMin = 82; sMax = 98; }
   const attendance = Math.round((aMin + Math.random() * (aMax - aMin)) * 10) / 10;
   const score = Math.round(sMin + Math.random() * (sMax - sMin));
-  return { attendance, marksObtained: score, marksTotal: 100, score };
+  return { attendance, marksObtained: score, marksTotal: 100 };
 };
 
 router.get("/api/student-performance", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-  if (req.session.userSource === "teacher") return res.json({ performance: [] });
+  if (!req.session.user || req.session.user.role !== "student") return res.json({ performance: [] });
 
-  const userId = req.session.userId;
-
-  // Insert defaults for any enrolled courses missing performance rows
+  const userId = Number(req.session.userId);
   db.query(
     `INSERT INTO ${PERFORMANCE_TABLE} (auth_user_id, course_id, attendance_pct, marks_obtained, marks_total, focus_area)
      SELECT e.auth_user_id, e.course_id, 82.50, 76, 100, CONCAT('Focus on practice in ', c.course_name)
-     FROM ${ENROLL_TABLE} e JOIN ${COURSE_TABLE} c ON c.course_id = e.course_id
+     FROM ${ENROLL_TABLE} e
+     JOIN ${COURSE_TABLE} c ON c.course_id = e.course_id
      WHERE e.auth_user_id = ?
        AND NOT EXISTS (
          SELECT 1 FROM ${PERFORMANCE_TABLE} p WHERE p.auth_user_id = e.auth_user_id AND p.course_id = e.course_id
@@ -731,26 +522,22 @@ router.get("/api/student-performance", (req, res) => {
         (err, rows) => {
           if (err) return res.status(500).json({ error: "Failed to load performance" });
           const performance = (rows || []).map((row) => {
-            let { attendance_pct: att, marks_obtained: mo, marks_total: mt } = row;
-            // Replace stub defaults with random realistic data
+            let att = row.attendance_pct;
+            let mo = row.marks_obtained;
+            let mt = row.marks_total;
             if (att == 82.5 && mo == 76 && mt == 100) {
-              const s = getRandomPerformanceSample();
-              att = s.attendance; mo = s.marksObtained; mt = s.marksTotal;
-            }
-            const score = mt > 0 ? Math.round((mo / mt) * 100) : null;
-            let focus = row.focus_area || "";
-            if (!focus) {
-              focus = score < 60 ? `Focus on ${row.course_name} fundamentals.` :
-                      att < 75 ? `Increase attendance in ${row.course_name}.` :
-                      `Maintain your progress in ${row.course_name}.`;
+              const sample = getRandomPerformanceSample();
+              att = sample.attendance;
+              mo = sample.marksObtained;
+              mt = sample.marksTotal;
             }
             return {
               course_name: row.course_name,
               attendance_pct: att,
               marks_obtained: mo,
               marks_total: mt,
-              score_pct: score,
-              focus_area: focus,
+              score_pct: mt > 0 ? Math.round((mo / mt) * 100) : null,
+              focus_area: row.focus_area || `Keep improving in ${row.course_name}.`,
               updated_at: row.updated_at
             };
           });
@@ -761,38 +548,39 @@ router.get("/api/student-performance", (req, res) => {
   );
 });
 
-// ─────────────────────────────────────────────
-// API: Teacher - Students Performance
-// ─────────────────────────────────────────────
 router.get("/api/teacher/students-performance", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-  if (req.session.userSource !== "teacher") return res.status(403).json({ error: "Teachers only" });
-  const deptId = Number(req.session && req.session.user && req.session.user.dept_id);
-  if (!Number.isInteger(deptId) || deptId <= 0) {
-    return res.status(400).json({ error: "Teacher department not found" });
-  }
+  if (!req.session.user || req.session.user.role !== "teacher") return res.status(403).json({ error: "Teachers only" });
+
+  const teacherId = Number(req.session.userId);
+  const deptId = Number(req.session.user.dept_id);
+  const universityId = Number(req.session.user.university_id);
 
   db.query(
     `SELECT u.id AS student_id, u.username AS student_name, u.email AS student_email,
             c.course_name, p.attendance_pct, p.marks_obtained, p.marks_total, p.focus_area, p.updated_at
-     FROM ${ENROLL_TABLE} e
-     JOIN ${AUTH_TABLE} u ON u.id = e.auth_user_id
-     JOIN ${COURSE_TABLE} c ON c.course_id = e.course_id
+     FROM ${AUTH_TABLE} u
+     LEFT JOIN ${ENROLL_TABLE} e ON e.auth_user_id = u.id
+     LEFT JOIN ${COURSE_TABLE} c ON c.course_id = e.course_id
      LEFT JOIN ${PERFORMANCE_TABLE} p ON p.auth_user_id = e.auth_user_id AND p.course_id = e.course_id
-     WHERE LOWER(COALESCE(u.role, 'student')) = 'student'
+     WHERE u.role = 'student'
        AND u.dept_id = ?
-       AND (c.dept_id = ? OR c.dept_id IS NULL)
+       AND u.university_id = ?
+       AND (c.teacher_id = ? OR c.teacher_id IS NULL OR c.dept_id = ? OR c.course_id IS NULL)
      ORDER BY u.username ASC, c.course_name ASC`,
-    [deptId, deptId],
+    [deptId, universityId, teacherId, deptId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: "Failed to load student data" });
       const students = (rows || []).map((row) => {
-        let { attendance_pct: att, marks_obtained: mo, marks_total: mt } = row;
+        let att = row.attendance_pct;
+        let mo = row.marks_obtained;
+        let mt = row.marks_total;
         if (att == 82.5 && mo == 76 && mt == 100) {
-          const s = getRandomPerformanceSample();
-          att = s.attendance; mo = s.marksObtained; mt = s.marksTotal;
+          const sample = getRandomPerformanceSample();
+          att = sample.attendance;
+          mo = sample.marksObtained;
+          mt = sample.marksTotal;
         }
-        const score = mt > 0 ? Math.round((mo / mt) * 100) : null;
         return {
           student_id: row.student_id,
           student_name: row.student_name,
@@ -801,21 +589,19 @@ router.get("/api/teacher/students-performance", (req, res) => {
           attendance_pct: att,
           marks_obtained: mo,
           marks_total: mt,
-          score_pct: score,
+          score_pct: mt > 0 ? Math.round((mo / mt) * 100) : null,
           focus_area: row.focus_area || null,
           updated_at: row.updated_at
         };
       });
 
-      const unique = new Set(students.map((s) => s.student_id)).size;
-      const attVals = students.map((s) => s.attendance_pct).filter(Number.isFinite);
-      const scoreVals = students.map((s) => s.score_pct).filter(Number.isFinite);
-
+      const attValues = students.map((student) => student.attendance_pct).filter(Number.isFinite);
+      const scoreValues = students.map((student) => student.score_pct).filter(Number.isFinite);
       return res.json({
         summary: {
-          student_count: unique,
-          avg_attendance_pct: attVals.length ? Math.round((attVals.reduce((a, b) => a + b, 0) / attVals.length) * 10) / 10 : null,
-          avg_score_pct: scoreVals.length ? Math.round((scoreVals.reduce((a, b) => a + b, 0) / scoreVals.length) * 10) / 10 : null
+          student_count: new Set(students.map((student) => student.student_id)).size,
+          avg_attendance_pct: attValues.length ? Math.round((attValues.reduce((a, b) => a + b, 0) / attValues.length) * 10) / 10 : null,
+          avg_score_pct: scoreValues.length ? Math.round((scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length) * 10) / 10 : null
         },
         students
       });
@@ -823,9 +609,236 @@ router.get("/api/teacher/students-performance", (req, res) => {
   );
 });
 
-// ─────────────────────────────────────────────
-// Logout
-// ─────────────────────────────────────────────
+router.get("/api/university/dashboard", (req, res) => {
+  if (!requireUniversity(req, res)) return;
+  const universityId = Number(req.session.userId);
+  const summarySql = `
+    SELECT
+      (SELECT COUNT(*) FROM ${AUTH_TABLE} WHERE university_id = ?) AS total_students,
+      (SELECT COUNT(*) FROM ${TEACHER_TABLE} WHERE university_id = ?) AS total_teachers,
+      (SELECT COUNT(*) FROM ${COURSE_TABLE} c LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id WHERE t.university_id = ?) AS total_courses,
+      (SELECT COUNT(*) FROM ${COURSE_TABLE} c LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id WHERE t.university_id = ? AND c.video_path LIKE '/uploads/%') AS uploaded_videos
+  `;
+
+  db.query(summarySql, [universityId, universityId, universityId, universityId], (summaryErr, summaryRows) => {
+    if (summaryErr) return res.status(500).json({ error: "Failed to load university summary" });
+    db.query(
+      `SELECT e.enrollment_id, e.enrollment_date,
+              u.id AS student_id, u.username AS student_name, u.email AS student_email,
+              c.course_id, c.course_name, c.video_path,
+              t.teacher_id, t.name AS teacher_name,
+              d.dept_name
+       FROM ${ENROLL_TABLE} e
+       JOIN ${AUTH_TABLE} u ON u.id = e.auth_user_id
+       JOIN ${COURSE_TABLE} c ON c.course_id = e.course_id
+       LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
+       LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = c.dept_id
+       WHERE u.university_id = ?
+       ORDER BY e.enrollment_date DESC, u.username ASC`,
+      [universityId],
+      (enrollErr, enrollmentRows) => {
+        if (enrollErr) return res.status(500).json({ error: "Failed to load student enrollments" });
+        db.query(
+          `SELECT c.course_id, c.course_name, c.video_path, d.dept_name, t.teacher_id, t.name AS teacher_name
+           FROM ${COURSE_TABLE} c
+           LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = c.dept_id
+           LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
+           LEFT JOIN ${ENROLL_TABLE} e ON e.course_id = c.course_id
+           LEFT JOIN ${AUTH_TABLE} u ON u.id = e.auth_user_id
+           WHERE t.university_id = ? OR u.university_id = ?
+           ORDER BY c.course_name ASC`,
+          [universityId, universityId],
+          (courseErr, courseRows) => {
+            if (courseErr) return res.status(500).json({ error: "Failed to load courses" });
+            db.query(
+              `SELECT t.teacher_id, t.name AS teacher_name, t.email AS teacher_email, t.subject, d.dept_name,
+                      COUNT(DISTINCT e.auth_user_id) AS student_count,
+                      ROUND(AVG(p.attendance_pct), 1) AS avg_attendance_pct,
+                      ROUND(AVG(CASE WHEN p.marks_total > 0 THEN (p.marks_obtained / p.marks_total) * 100 ELSE NULL END), 1) AS avg_score_pct,
+                      COUNT(DISTINCT CASE WHEN c.video_path LIKE '/uploads/%' THEN c.course_id END) AS uploaded_course_count
+               FROM ${TEACHER_TABLE} t
+               LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = t.dept_id
+               LEFT JOIN ${COURSE_TABLE} c ON c.teacher_id = t.teacher_id
+               LEFT JOIN ${ENROLL_TABLE} e ON e.course_id = c.course_id
+               LEFT JOIN ${PERFORMANCE_TABLE} p ON p.auth_user_id = e.auth_user_id AND p.course_id = c.course_id
+               WHERE t.university_id = ?
+               GROUP BY t.teacher_id, t.name, t.email, t.subject, d.dept_name
+               ORDER BY t.name ASC`,
+              [universityId],
+              (teacherErr, teacherRows) => {
+                if (teacherErr) return res.status(500).json({ error: "Failed to load teacher performance" });
+                db.query(
+                  `SELECT d.dept_id, d.dept_name,
+                          s.id AS student_id, s.username AS student_name, s.email AS student_email,
+                          t.teacher_id, t.name AS teacher_name, t.email AS teacher_email, t.subject
+                   FROM ${DEPT_TABLE} d
+                   LEFT JOIN ${AUTH_TABLE} s
+                     ON s.dept_id = d.dept_id
+                    AND s.university_id = ?
+                    AND s.role = 'student'
+                   LEFT JOIN ${TEACHER_TABLE} t
+                     ON t.dept_id = d.dept_id
+                    AND t.university_id = ?
+                   ORDER BY d.dept_name ASC, s.username ASC, t.name ASC`,
+                  [universityId, universityId],
+                  (branchErr, branchRows) => {
+                    if (branchErr) return res.status(500).json({ error: "Failed to load branch data" });
+
+                    const branchMap = new Map();
+                    (branchRows || []).forEach((row) => {
+                      if (!branchMap.has(row.dept_id)) {
+                        branchMap.set(row.dept_id, {
+                          dept_id: row.dept_id,
+                          dept_name: row.dept_name,
+                          students: [],
+                          teachers: []
+                        });
+                      }
+
+                      const branch = branchMap.get(row.dept_id);
+                      if (row.student_id && !branch.students.some((student) => student.student_id === row.student_id)) {
+                        branch.students.push({
+                          student_id: row.student_id,
+                          student_name: row.student_name,
+                          student_email: row.student_email
+                        });
+                      }
+                      if (row.teacher_id && !branch.teachers.some((teacher) => teacher.teacher_id === row.teacher_id)) {
+                        branch.teachers.push({
+                          teacher_id: row.teacher_id,
+                          teacher_name: row.teacher_name,
+                          teacher_email: row.teacher_email,
+                          subject: row.subject || null
+                        });
+                      }
+                    });
+
+                    return res.json({
+                      summary: summaryRows && summaryRows[0] ? summaryRows[0] : {},
+                      enrollments: enrollmentRows || [],
+                      courses: (courseRows || []).map((course) => ({
+                        ...course,
+                        video_path: resolveCourseVideoPath(course.course_name, course.video_path)
+                      })),
+                      teachers: teacherRows || [],
+                      branches: Array.from(branchMap.values())
+                    });
+                  }
+                );
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+});
+
+router.post("/api/university/enrollments/remove", (req, res) => {
+  if (!requireUniversity(req, res)) return;
+
+  const enrollmentId = Number(req.body && req.body.enrollmentId);
+  const universityId = Number(req.session.userId);
+
+  db.query(
+    `SELECT e.enrollment_id, e.auth_user_id, e.course_id
+     FROM ${ENROLL_TABLE} e
+     JOIN ${AUTH_TABLE} u ON u.id = e.auth_user_id
+     WHERE e.enrollment_id = ? AND u.university_id = ?
+     LIMIT 1`,
+    [enrollmentId, universityId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Failed to validate enrollment" });
+      if (!rows || rows.length === 0) return res.status(404).json({ error: "Enrollment not found" });
+      db.query(
+        `DELETE FROM ${PERFORMANCE_TABLE} WHERE auth_user_id = ? AND course_id = ?`,
+        [rows[0].auth_user_id, rows[0].course_id],
+        (perfErr) => {
+          if (perfErr) return res.status(500).json({ error: "Failed to remove performance data" });
+          db.query(`DELETE FROM ${ENROLL_TABLE} WHERE enrollment_id = ?`, [enrollmentId], (deleteErr) => {
+            if (deleteErr) return res.status(500).json({ error: "Failed to remove enrollment" });
+            return res.json({ message: "Student removed from the course" });
+          });
+        }
+      );
+    }
+  );
+});
+
+router.post("/api/university/enrollments/change", (req, res) => {
+  if (!requireUniversity(req, res)) return;
+
+  const enrollmentId = Number(req.body && req.body.enrollmentId);
+  const newCourseId = Number(req.body && req.body.newCourseId);
+  const universityId = Number(req.session.userId);
+
+  db.query(
+    `SELECT e.enrollment_id, e.auth_user_id, e.course_id
+     FROM ${ENROLL_TABLE} e
+     JOIN ${AUTH_TABLE} u ON u.id = e.auth_user_id
+     WHERE e.enrollment_id = ? AND u.university_id = ?
+     LIMIT 1`,
+    [enrollmentId, universityId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Failed to validate enrollment" });
+      if (!rows || rows.length === 0) return res.status(404).json({ error: "Enrollment not found" });
+      db.query(`SELECT course_id, course_name FROM ${COURSE_TABLE} WHERE course_id = ? LIMIT 1`, [newCourseId], (courseErr, courseRows) => {
+        if (courseErr) return res.status(500).json({ error: "Failed to validate course" });
+        if (!courseRows || courseRows.length === 0) return res.status(404).json({ error: "Target course not found" });
+        db.query(
+          `UPDATE ${ENROLL_TABLE} SET course_id = ?, enrollment_date = CURDATE() WHERE enrollment_id = ?`,
+          [newCourseId, enrollmentId],
+          (updateErr) => {
+            if (updateErr) return res.status(500).json({ error: "Failed to change student course" });
+            db.query(
+              `DELETE FROM ${PERFORMANCE_TABLE} WHERE auth_user_id = ? AND course_id = ?`,
+              [rows[0].auth_user_id, rows[0].course_id],
+              (perfErr) => {
+                if (perfErr) return res.status(500).json({ error: "Course updated but performance cleanup failed" });
+                return res.json({ message: "Student course updated successfully", courseName: courseRows[0].course_name });
+              }
+            );
+          }
+        );
+      });
+    }
+  );
+});
+
+router.post("/api/university/courses/remove-video", (req, res) => {
+  if (!requireUniversity(req, res)) return;
+
+  const courseId = Number(req.body && req.body.courseId);
+  const universityId = Number(req.session.userId);
+
+  db.query(
+    `SELECT c.course_id, c.video_path
+     FROM ${COURSE_TABLE} c
+     JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
+     WHERE c.course_id = ? AND t.university_id = ?
+     LIMIT 1`,
+    [courseId, universityId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Failed to validate course" });
+      if (!rows || rows.length === 0) return res.status(404).json({ error: "Course not found" });
+      if (!String(rows[0].video_path || "").startsWith("/uploads/")) {
+        return res.status(400).json({ error: "This course does not have a teacher-uploaded file" });
+      }
+
+      const absoluteFile = path.join(__dirname, "..", "..", "public", String(rows[0].video_path).replace(/^\//, ""));
+      db.query(`UPDATE ${COURSE_TABLE} SET video_path = NULL WHERE course_id = ?`, [courseId], (updateErr) => {
+        if (updateErr) return res.status(500).json({ error: "Failed to remove uploaded file" });
+        fs.unlink(absoluteFile, (unlinkErr) => {
+          if (unlinkErr && unlinkErr.code !== "ENOENT") {
+            console.error("Failed to delete uploaded file:", unlinkErr.message);
+          }
+          return res.json({ message: "Teacher uploaded file deleted successfully" });
+        });
+      });
+    }
+  );
+});
+
 router.get("/logout", (req, res) => {
   req.session.destroy();
   res.redirect("/pages/login.html");

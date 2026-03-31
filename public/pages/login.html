@@ -10,7 +10,7 @@
 
 <header class="navbar">
   <a href="/pages/home.html" class="logo">
-    <span class="logo-icon">📖</span>
+    <span class="logo-icon">Learn</span>
     <span class="logo-text">Learnix</span>
   </a>
   <nav>
@@ -27,9 +27,9 @@
 
 <main>
   <section class="hero">
-    <div class="transform-banner"><span>Welcome Back 👋</span></div>
+    <div class="transform-banner"><span>Welcome Back</span></div>
     <h1>Log in to <span class="journey">Learnix</span></h1>
-    <p class="subtitle">Continue your learning journey.</p>
+    <p class="subtitle">OTP is disabled. Use your email, password, and role to sign in.</p>
 
     <form class="demo-form" id="loginForm" action="/login" method="post">
       <input type="email" name="username" id="loginEmail" placeholder="Email Address" required>
@@ -37,23 +37,19 @@
 
       <div class="show-password-toggle">
         <input type="checkbox" id="showPwd" onchange="document.getElementById('loginPassword').type = this.checked ? 'text' : 'password'">
-        <label for="showPwd">👁 Show Password</label>
+        <label for="showPwd">Show Password</label>
       </div>
 
-      <select name="role" required>
+      <select name="role" id="loginRole" required>
         <option value="" disabled selected>Select Role</option>
         <option value="student">Student</option>
         <option value="teacher">Teacher</option>
+        <option value="university">University</option>
       </select>
 
-      <input type="text" name="department" id="deptInput" placeholder="Department" required>
-      <datalist id="deptList"></datalist>
-
-      <div style="text-align:center; color:var(--text-muted); font-weight:700;">OTP is required for login</div>
-      <div style="display:grid; grid-template-columns:1fr auto; gap:12px;">
-        <input type="text" name="otp" id="loginOtpInput" placeholder="Enter 5-digit OTP" pattern="[0-9]{5}" maxlength="5" required>
-        <button type="button" id="sendLoginOtpBtn" class="get-started-free" style="white-space:nowrap;">Send OTP</button>
-      </div>
+      <select name="branch" id="loginBranch" style="display:none;">
+        <option value="" disabled selected>Select Branch</option>
+      </select>
 
       <button type="submit" class="get-started-free">Log In</button>
     </form>
@@ -72,78 +68,32 @@
 <script src="/assets/js/main.js"></script>
 <script>
   const loginError = document.getElementById('loginError');
-
-  function showLoginStatus(message, type) {
-    loginError.textContent = message;
-    loginError.className = 'status-msg ' + (type || '');
+  const loginRole = document.getElementById('loginRole');
+  const loginBranch = document.getElementById('loginBranch');
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('error')) {
+    loginError.textContent = decodeURIComponent(params.get('error'));
     loginError.style.display = 'block';
   }
 
-  async function readJsonResponse(res) {
-    const raw = await res.text();
-    try {
-      return raw ? JSON.parse(raw) : {};
-    } catch (_err) {
-      const cleaned = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      throw new Error(cleaned || `Request failed with status ${res.status}`);
-    }
+  function syncBranchVisibility() {
+    const needsBranch = loginRole.value === 'student' || loginRole.value === 'teacher';
+    loginBranch.style.display = needsBranch ? 'block' : 'none';
+    loginBranch.required = needsBranch;
+    if (!needsBranch) loginBranch.value = '';
   }
 
-  // Load departments as suggestions
-  fetch('/api/departments').then(r => r.json()).then(data => {
-    const list = document.getElementById('deptList');
-    const input = document.getElementById('deptInput');
-    if (list && data.departments) {
-      data.departments.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d.dept_name;
-        list.appendChild(opt);
-      });
-      input.setAttribute('list', 'deptList');
-    }
+  loginRole.addEventListener('change', syncBranchVisibility);
+  syncBranchVisibility();
+
+  fetch('/api/departments').then((r) => r.json()).then((data) => {
+    (data.departments || []).forEach((dept) => {
+      const option = document.createElement('option');
+      option.value = dept.dept_name;
+      option.textContent = dept.dept_name;
+      loginBranch.appendChild(option);
+    });
   }).catch(() => {});
-
-  // Handle form errors from server redirect
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('error')) {
-    showLoginStatus(decodeURIComponent(params.get('error')), 'error');
-  }
-
-  function getLoginOtpPayload(includeOtp) {
-    const email = document.getElementById('loginEmail').value.trim();
-    const role = document.querySelector('select[name="role"]').value;
-    const department = document.getElementById('deptInput').value.trim();
-    const otp = document.getElementById('loginOtpInput').value.trim();
-
-    if (!email || !role || !department) {
-      showLoginStatus('Enter email, role, and department before using OTP login.', 'error');
-      return null;
-    }
-    if (includeOtp && !otp) {
-      showLoginStatus('Enter the 5-digit OTP sent to your email.', 'error');
-      return null;
-    }
-
-    return includeOtp ? { email, role, department, otp } : { email, role, department };
-  }
-
-  document.getElementById('sendLoginOtpBtn').addEventListener('click', async () => {
-    const payload = getLoginOtpPayload(false);
-    if (!payload) return;
-
-    try {
-      const res = await fetch('/api/login-otp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await readJsonResponse(res);
-      if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
-      showLoginStatus('OTP sent. Enter it in the OTP field, then click Log In.', 'success');
-    } catch (err) {
-      showLoginStatus(err.message || 'Failed to send OTP.', 'error');
-    }
-  });
 </script>
 </body>
 </html>

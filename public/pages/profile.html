@@ -61,10 +61,10 @@
       card.innerHTML = `
         <div class="profile-avatar">${initials}</div>
         <h2>${user.username || 'User'}</h2>
-        <span class="profile-role">${user.role === 'teacher' ? 'Teacher' : 'Student'}</span>
+        <span class="profile-role">${user.role === 'teacher' ? 'Teacher' : user.role === 'university' ? 'University' : 'Student'}</span>
         <div class="profile-fields">
           <div class="profile-field">
-            <label>Full Name</label>
+            <label>${user.role === 'university' ? 'University Name' : 'Name'}</label>
             <span>${user.username || '-'}</span>
           </div>
           <div class="profile-field">
@@ -72,13 +72,23 @@
             <span>${user.email || '-'}</span>
           </div>
           <div class="profile-field">
-            <label>Phone Number</label>
-            <span>${user.phone_no || '-'}</span>
+            <label>University</label>
+            <span>${user.university_name || (user.role === 'university' ? user.username || '-' : '-')}</span>
           </div>
           <div class="profile-field">
-            <label>Department</label>
+            <label>Branch</label>
             <span>${user.department || '-'}</span>
           </div>
+          ${user.role === 'teacher' ? `
+          <div class="profile-field">
+            <label>Subject</label>
+            <span>${user.subject || '-'}</span>
+          </div>` : ''}
+          ${user.role === 'university' ? `
+          <div class="profile-field">
+            <label>Principal Name</label>
+            <span>${user.principal_name || '-'}</span>
+          </div>` : ''}
           <div class="profile-field">
             <label>Role</label>
             <span style="text-transform:capitalize;">${user.role || '-'}</span>
