@@ -10,7 +10,7 @@
 
 <header class="navbar">
   <a href="/pages/home.html" class="logo">
-    <span class="logo-icon">📖</span>
+    <span class="logo-icon">Learn</span>
     <span class="logo-text">Learnix</span>
   </a>
   <nav>
@@ -21,18 +21,15 @@
     </ul>
   </nav>
   <div class="nav-actions">
-    <a href="/profile" class="sign-in">👤 My Profile</a>
+    <a href="/profile" class="sign-in">My Profile</a>
     <a href="/logout" class="schedule-demo">Sign Out</a>
   </div>
 </header>
 
 <main>
-  <!-- Welcome hero -->
   <section class="hero" style="padding-bottom:32px;">
-    <div class="transform-banner"><span>👋 Welcome</span></div>
-    <h1 id="welcomeTitle">
-      Your <span class="journey">Dashboard</span>
-    </h1>
+    <div class="transform-banner"><span>Welcome</span></div>
+    <h1 id="welcomeTitle">Your <span class="journey">Dashboard</span></h1>
     <p class="subtitle" id="welcomeUser">Loading your profile...</p>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
       <a href="/pages/courses.html" class="get-started-free">Browse Courses</a>
@@ -40,7 +37,6 @@
     </div>
   </section>
 
-  <!-- ── STUDENT PERFORMANCE SECTION ── -->
   <section class="dashboard-section" id="studentSection">
     <div class="dashboard-header">
       <div>
@@ -58,7 +54,6 @@
     </div>
   </section>
 
-  <!-- ── TEACHER DASHBOARD SECTION ── -->
   <section class="dashboard-section" id="teacherSection" style="display:none;">
     <div class="dashboard-header">
       <div>
@@ -69,7 +64,6 @@
       <div class="dashboard-badge" id="teacherStatus">Loading...</div>
     </div>
 
-    <!-- Filters -->
     <div class="teacher-filters">
       <label>
         <span>Course</span>
@@ -83,7 +77,6 @@
       </label>
     </div>
 
-    <!-- Summary cards -->
     <div class="teacher-summary">
       <div class="teacher-summary-card">
         <span>Total Students</span>
@@ -118,14 +111,12 @@
       <div id="teacherUploadMsg" class="status-msg" style="display:none;margin-top:10px;"></div>
     </div>
 
-    <!-- Student cards -->
     <div id="teacherGrid" class="teacher-grid">
       <div class="teacher-card loading">
         <h3 style="margin:0;">Loading students...</h3>
       </div>
     </div>
 
-    <!-- Charts -->
     <div class="teacher-visuals">
       <div class="teacher-chart-card">
         <h3>Top Scores</h3>
@@ -145,6 +136,62 @@
       </div>
     </div>
   </section>
+
+  <section class="dashboard-section" id="universitySection" style="display:none;">
+    <div class="dashboard-header">
+      <div>
+        <span class="dashboard-kicker">University Dashboard</span>
+        <h2>Control Center</h2>
+        <p>Manage enrollments, remove wrong teacher uploads, and review teacher performance across the platform.</p>
+      </div>
+      <div class="dashboard-badge" id="universityStatus">Loading...</div>
+    </div>
+
+    <div class="teacher-summary">
+      <div class="teacher-summary-card">
+        <span>Total Students</span>
+        <strong id="universityStudentCount">0</strong>
+      </div>
+      <div class="teacher-summary-card">
+        <span>Total Teachers</span>
+        <strong id="universityTeacherCount">0</strong>
+      </div>
+      <div class="teacher-summary-card">
+        <span>Total Courses</span>
+        <strong id="universityCourseCount">0</strong>
+      </div>
+      <div class="teacher-summary-card">
+        <span>Uploaded Videos</span>
+        <strong id="universityUploadCount">0</strong>
+      </div>
+    </div>
+
+    <div id="universityStatusMsg" class="status-msg" style="display:none;margin:0 0 16px;"></div>
+    <div class="subject-panel" style="margin:16px 0 24px;">
+      <h3 style="margin:0 0 10px;">Branch Overview</h3>
+      <p style="margin:0;color:var(--text-muted);">Click a branch to open all the data currently shown on this dashboard for that branch only.</p>
+    </div>
+    <div id="universityBranchSections" class="university-branch-sections"><div class="teacher-card loading"><h3 style="margin:0;">Loading branch information...</h3></div></div>
+    <div id="universityBranchDetail" class="university-branch-detail"><div class="chart-empty">Select a branch to view its details.</div></div>
+
+    <div class="subject-panel" style="margin:16px 0 24px;">
+      <h3 style="margin:0 0 10px;">Student Course Management</h3>
+      <p style="margin:0;color:var(--text-muted);">Remove a student from an accidental course enrollment or move them into the correct course.</p>
+    </div>
+    <div id="universityEnrollmentGrid" class="university-grid"><div class="teacher-card loading"><h3 style="margin:0;">Loading enrollments...</h3></div></div>
+
+    <div class="subject-panel" style="margin:8px 0 24px;">
+      <h3 style="margin:0 0 10px;">Teacher Performance</h3>
+      <p style="margin:0;color:var(--text-muted);">Review how teachers are doing using student attendance and marks from their assigned courses.</p>
+    </div>
+    <div id="universityTeacherGrid" class="university-grid"><div class="teacher-card loading"><h3 style="margin:0;">Loading teacher performance...</h3></div></div>
+
+    <div class="subject-panel" style="margin:8px 0 24px;">
+      <h3 style="margin:0 0 10px;">Teacher Uploaded Files</h3>
+      <p style="margin:0;color:var(--text-muted);">Delete a teacher-uploaded video if the wrong file was attached to a course.</p>
+    </div>
+    <div id="universityUploadGrid" class="university-grid"><div class="teacher-card loading"><h3 style="margin:0;">Loading uploaded files...</h3></div></div>
+  </section>
 </main>
 
 <footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
@@ -152,8 +199,34 @@
 <script src="/assets/js/main.js"></script>
 <script>
   const fmt = (v, sfx) => (v === null || v === undefined || isNaN(v)) ? 'N/A' : `${v}${sfx || ''}`;
+  const teacherUploadForm = document.getElementById('teacherUploadForm');
+  let teacherCache = [];
+  let universityState = { enrollments: [], courses: [], teachers: [], branches: [], summary: {}, selectedBranchId: null };
 
-  // ─── Student performance cards ───────────────
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function setStatusMessage(id, type, text) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'status-msg ' + (type || '');
+    el.style.display = 'block';
+  }
+
+  function clearStatusMessage(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = '';
+    el.style.display = 'none';
+  }
+
   function renderPerformanceCards(perf) {
     const grid = document.getElementById('performanceGrid');
     if (!perf || perf.length === 0) {
@@ -165,16 +238,19 @@
         </div>`;
       return;
     }
+
     grid.innerHTML = perf.map(item => {
-      const tag = item.score_pct !== null && item.score_pct < 60 ? 'Needs Focus' :
-                  item.attendance_pct !== null && item.attendance_pct < 75 ? 'Attendance Risk' : 'On Track';
+      const tag = item.score_pct !== null && item.score_pct < 60 ? 'Needs Focus'
+        : item.attendance_pct !== null && item.attendance_pct < 75 ? 'Attendance Risk'
+        : 'On Track';
       const tagClass = tag === 'Needs Focus' ? 'needs' : tag === 'Attendance Risk' ? 'risk' : '';
       const marks = (item.marks_obtained !== null && item.marks_total !== null)
         ? `${item.marks_obtained} / ${item.marks_total}` : 'N/A';
+
       return `
         <article class="performance-card">
           <div class="performance-head">
-            <h3>${item.course_name || 'Untitled Course'}</h3>
+            <h3>${escapeHtml(item.course_name || 'Untitled Course')}</h3>
             <span class="performance-tag ${tagClass}">${tag}</span>
           </div>
           <div class="performance-metrics">
@@ -193,14 +269,11 @@
           </div>
           <div class="performance-focus">
             <span>Focus Area</span>
-            <p>${item.focus_area || 'Keep practicing to improve.'}</p>
+            <p>${escapeHtml(item.focus_area || 'Keep practicing to improve.')}</p>
           </div>
         </article>`;
     }).join('');
   }
-
-  // ─── Teacher student cards ───────────────────
-  let teacherCache = [];
 
   function renderTeacherCards(students) {
     const grid = document.getElementById('teacherGrid');
@@ -212,22 +285,25 @@
         </div>`;
       return;
     }
+
     grid.innerHTML = students.map(s => {
-      const tag = s.score_pct !== null && s.score_pct < 60 ? 'Needs Focus' :
-                  s.attendance_pct !== null && s.attendance_pct < 75 ? 'Attendance Risk' : 'On Track';
+      const tag = s.score_pct !== null && s.score_pct < 60 ? 'Needs Focus'
+        : s.attendance_pct !== null && s.attendance_pct < 75 ? 'Attendance Risk'
+        : 'On Track';
       const tagClass = tag === 'Needs Focus' ? 'needs' : tag === 'Attendance Risk' ? 'risk' : '';
       const marks = (s.marks_obtained !== null && s.marks_total !== null)
         ? `${s.marks_obtained} / ${s.marks_total}` : 'N/A';
+
       return `
         <article class="teacher-card">
           <div class="teacher-card-head">
             <div>
-              <h3>${s.student_name || 'Student'}</h3>
-              <p>${s.student_email || ''}</p>
+              <h3>${escapeHtml(s.student_name || 'Student')}</h3>
+              <p>${escapeHtml(s.student_email || '')}</p>
             </div>
             <span class="performance-tag ${tagClass}">${tag}</span>
           </div>
-          <div class="teacher-course">${s.course_name || 'Course'}</div>
+          <div class="teacher-course">${escapeHtml(s.course_name || 'Course')}</div>
           <div class="performance-metrics">
             <div class="metric-row">
               <span class="metric-label">Attendance</span>
@@ -246,91 +322,100 @@
     }).join('');
   }
 
-  // ─── Bar chart ───────────────────────────────
   function renderBarChart(id, rows, valKey, labelKey) {
     const el = document.getElementById(id);
     if (!el) return;
-    if (!rows || rows.length === 0) { el.innerHTML = '<div class="chart-empty">No data yet.</div>'; return; }
+    if (!rows || rows.length === 0) {
+      el.innerHTML = '<div class="chart-empty">No data yet.</div>';
+      return;
+    }
+
     const max = Math.max(...rows.map(r => Number(r[valKey]) || 0), 1);
     el.innerHTML = rows.map(r => {
-      const v = Number(r[valKey]) || 0;
+      const value = Number(r[valKey]) || 0;
       return `
         <div class="chart-row">
-          <span class="chart-label">${r[labelKey]}</span>
-          <div class="chart-bar"><div class="chart-fill" style="width:${Math.round(v/max*100)}%"></div></div>
-          <span class="chart-value">${v}%</span>
+          <span class="chart-label">${escapeHtml(r[labelKey])}</span>
+          <div class="chart-bar"><div class="chart-fill" style="width:${Math.round(value / max * 100)}%"></div></div>
+          <span class="chart-value">${value}%</span>
         </div>`;
     }).join('');
   }
 
-  // ─── Donut chart ─────────────────────────────
   function renderDonut(id, value, label, color) {
     const el = document.getElementById(id);
     if (!el) return;
-    const v = isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
-    const r = 44, circ = 2 * Math.PI * r, dash = (v / 100) * circ;
+    const safeValue = isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+    const radius = 44;
+    const circumference = 2 * Math.PI * radius;
+    const dash = (safeValue / 100) * circumference;
+
     el.innerHTML = `
       <div class="donut-wrap">
         <svg width="120" height="120" viewBox="0 0 120 120">
-          <circle class="donut-bg" cx="60" cy="60" r="${r}"/>
-          <circle class="donut-fill" cx="60" cy="60" r="${r}"
-            style="stroke:${color || '#2563eb'};stroke-dasharray:${dash} ${circ};"/>
+          <circle class="donut-bg" cx="60" cy="60" r="${radius}"></circle>
+          <circle class="donut-fill" cx="60" cy="60" r="${radius}"
+            style="stroke:${color || '#2563eb'};stroke-dasharray:${dash} ${circumference};"></circle>
         </svg>
         <div class="donut-center">
-          <strong>${isFinite(value) ? Math.round(v) + '%' : 'N/A'}</strong>
-          <span>${label}</span>
+          <strong>${isFinite(value) ? Math.round(safeValue) + '%' : 'N/A'}</strong>
+          <span>${escapeHtml(label)}</span>
         </div>
       </div>`;
   }
 
-  // ─── Apply teacher filters ───────────────────
-  function applyFilters() {
+  function applyTeacherFilters() {
     const course = document.getElementById('teacherCourseFilter').value;
     const name = (document.getElementById('teacherNameFilter').value || '').trim().toLowerCase();
-    let filtered = course === 'all' ? teacherCache : teacherCache.filter(s => s.course_name === course);
-    if (name) filtered = filtered.filter(s => (s.student_name || '').toLowerCase().includes(name));
+    let filtered = course === 'all' ? teacherCache : teacherCache.filter(student => student.course_name === course);
+    if (name) filtered = filtered.filter(student => (student.student_name || '').toLowerCase().includes(name));
+
     renderTeacherCards(filtered);
 
-    const topScores = filtered.filter(s => isFinite(s.score_pct)).sort((a, b) => b.score_pct - a.score_pct).slice(0, 6)
-      .map(s => ({ label: s.student_name || 'Student', value: Math.round(s.score_pct) }));
-    const topAtt = filtered.filter(s => isFinite(s.attendance_pct)).sort((a, b) => b.attendance_pct - a.attendance_pct).slice(0, 6)
-      .map(s => ({ label: s.student_name || 'Student', value: Math.round(s.attendance_pct) }));
+    const topScores = filtered
+      .filter(student => isFinite(student.score_pct))
+      .sort((a, b) => b.score_pct - a.score_pct)
+      .slice(0, 6)
+      .map(student => ({ label: student.student_name || 'Student', value: Math.round(student.score_pct) }));
+    const topAttendance = filtered
+      .filter(student => isFinite(student.attendance_pct))
+      .sort((a, b) => b.attendance_pct - a.attendance_pct)
+      .slice(0, 6)
+      .map(student => ({ label: student.student_name || 'Student', value: Math.round(student.attendance_pct) }));
+
     renderBarChart('scoreChart', topScores, 'value', 'label');
-    renderBarChart('attendanceChart', topAtt, 'value', 'label');
+    renderBarChart('attendanceChart', topAttendance, 'value', 'label');
   }
 
   function setUploadMessage(type, text) {
-    const msg = document.getElementById('teacherUploadMsg');
-    msg.textContent = text;
-    msg.className = 'status-msg ' + type;
-    msg.style.display = 'block';
+    setStatusMessage('teacherUploadMsg', type, text);
   }
 
   async function loadTeacherUploadCourses() {
     const select = document.getElementById('teacherUploadCourse');
     if (!select) return;
+
     try {
       const res = await fetch('/api/teacher/courses', { credentials: 'same-origin' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load courses');
-
       const courses = Array.isArray(data.courses) ? data.courses : [];
-      select.innerHTML = '<option value="">Select course</option>' + courses.map(c =>
-        `<option value="${c.course_id}">${c.course_name}</option>`
+      select.innerHTML = '<option value="">Select course</option>' + courses.map(course =>
+        `<option value="${course.course_id}">${escapeHtml(course.course_name)}</option>`
       ).join('');
-    } catch (e) {
-      setUploadMessage('error', e.message || 'Unable to load your courses.');
+    } catch (error) {
+      setUploadMessage('error', error.message || 'Unable to load your courses.');
     }
   }
 
   async function handleTeacherVideoUpload(event) {
     event.preventDefault();
-    const btn = document.getElementById('teacherUploadBtn');
+    const button = document.getElementById('teacherUploadBtn');
     const courseSelect = document.getElementById('teacherUploadCourse');
     const fileInput = document.getElementById('teacherUploadVideo');
-
     const courseId = Number(courseSelect.value || 0);
     const file = fileInput.files && fileInput.files[0];
+
     if (!courseId) {
       setUploadMessage('error', 'Please select a course.');
       return;
@@ -340,8 +425,8 @@
       return;
     }
 
-    btn.disabled = true;
-    btn.textContent = 'Uploading...';
+    button.disabled = true;
+    button.textContent = 'Uploading...';
     const formData = new FormData();
     formData.append('courseId', String(courseId));
     formData.append('courseVideo', file);
@@ -354,88 +439,430 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
-
       fileInput.value = '';
       setUploadMessage('success', `Uploaded for ${data.courseName}. Students can now open this video from their enrolled courses.`);
       await loadTeacherUploadCourses();
-    } catch (e) {
-      setUploadMessage('error', e.message || 'Upload failed');
+    } catch (error) {
+      setUploadMessage('error', error.message || 'Upload failed');
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Upload Video';
+      button.disabled = false;
+      button.textContent = 'Upload Video';
     }
   }
 
-  // ─── Load student performance ────────────────
   async function loadStudentDashboard() {
     try {
       const res = await fetch('/api/student-performance', { credentials: 'same-origin' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      const perf = Array.isArray(data.performance) ? data.performance : [];
-      document.getElementById('studentStatus').textContent = perf.length === 0 ? 'Awaiting data' : 'Up to date';
-      renderPerformanceCards(perf);
-    } catch (e) {
+      if (!res.ok) throw new Error(data.error || 'Failed to load student performance');
+      const performance = Array.isArray(data.performance) ? data.performance : [];
+      document.getElementById('studentStatus').textContent = performance.length === 0 ? 'Awaiting data' : 'Up to date';
+      renderPerformanceCards(performance);
+    } catch (_error) {
       document.getElementById('studentStatus').textContent = 'Unavailable';
       renderPerformanceCards([]);
     }
   }
 
-  // ─── Load teacher dashboard ──────────────────
   async function loadTeacherDashboard() {
     const section = document.getElementById('teacherSection');
+
     try {
       const res = await fetch('/api/teacher/students-performance', { credentials: 'same-origin' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || 'Failed to load teacher dashboard');
 
       const students = Array.isArray(data.students) ? data.students : [];
       const summary = data.summary || {};
       teacherCache = students;
       section.style.display = 'block';
-      loadTeacherUploadCourses();
+      await loadTeacherUploadCourses();
 
-      // Populate course filter
-      const cf = document.getElementById('teacherCourseFilter');
-      const courses = [...new Set(students.map(s => s.course_name).filter(Boolean))];
-      courses.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c; opt.textContent = c;
-        cf.appendChild(opt);
+      const courseFilter = document.getElementById('teacherCourseFilter');
+      courseFilter.innerHTML = '<option value="all">All Courses</option>';
+      [...new Set(students.map(student => student.course_name).filter(Boolean))].forEach(courseName => {
+        const option = document.createElement('option');
+        option.value = courseName;
+        option.textContent = courseName;
+        courseFilter.appendChild(option);
       });
-      cf.onchange = applyFilters;
-      document.getElementById('teacherNameFilter').oninput = applyFilters;
 
+      courseFilter.onchange = applyTeacherFilters;
+      document.getElementById('teacherNameFilter').oninput = applyTeacherFilters;
       document.getElementById('teacherStudentCount').textContent = summary.student_count ?? 0;
       document.getElementById('teacherAvgAttendance').textContent = summary.avg_attendance_pct != null ? summary.avg_attendance_pct + '%' : 'N/A';
       document.getElementById('teacherAvgScore').textContent = summary.avg_score_pct != null ? summary.avg_score_pct + '%' : 'N/A';
       document.getElementById('teacherStatus').textContent = students.length === 0 ? 'Awaiting data' : 'Up to date';
 
-      applyFilters();
+      applyTeacherFilters();
       renderDonut('scoreDonut', summary.avg_score_pct, 'Avg Score', '#2563eb');
       renderDonut('attendanceDonut', summary.avg_attendance_pct, 'Avg Attendance', '#22c55e');
-    } catch (e) {
-      // Not a teacher or error — hide section
+    } catch (_error) {
       section.style.display = 'none';
     }
   }
 
-  const teacherUploadForm = document.getElementById('teacherUploadForm');
+  function renderUniversitySummary() {
+    const summary = universityState.summary || {};
+    document.getElementById('universityStudentCount').textContent = summary.total_students ?? 0;
+    document.getElementById('universityTeacherCount').textContent = summary.total_teachers ?? 0;
+    document.getElementById('universityCourseCount').textContent = summary.total_courses ?? 0;
+    document.getElementById('universityUploadCount').textContent = summary.uploaded_videos ?? 0;
+  }
+
+  function getSelectedBranch() {
+    return (universityState.branches || []).find((branch) => Number(branch.dept_id) === Number(universityState.selectedBranchId)) || null;
+  }
+
+  function renderUniversityBranches() {
+    const container = document.getElementById('universityBranchSections');
+    const branches = universityState.branches || [];
+
+    if (branches.length === 0) {
+      container.innerHTML = `
+        <div class="performance-empty">
+          <h3>No branch information yet</h3>
+          <p>Students and teachers will appear inside their branch sections once they register.</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = branches.map((branch) => `
+      <button type="button" class="branch-selector ${Number(universityState.selectedBranchId) === Number(branch.dept_id) ? 'active' : ''}" data-branch-id="${branch.dept_id}">
+        <strong>${escapeHtml(branch.dept_name || 'Branch')}</strong>
+        <span>${branch.students.length} students</span>
+        <span>${branch.teachers.length} teachers</span>
+      </button>
+    `).join('');
+  }
+
+  function renderSelectedBranchDetail() {
+    const detail = document.getElementById('universityBranchDetail');
+    const branch = getSelectedBranch();
+
+    if (!branch) {
+      detail.innerHTML = '<div class="chart-empty">Select a branch to view its details.</div>';
+      return;
+    }
+
+    detail.innerHTML = `
+      <section class="branch-section">
+        <div class="branch-section-head">
+          <div>
+            <h3>${escapeHtml(branch.dept_name || 'Branch')}</h3>
+            <p>${branch.students.length} students and ${branch.teachers.length} teachers</p>
+          </div>
+        </div>
+        <div class="branch-section-grid">
+          <div class="branch-column">
+            <h4>Students</h4>
+            ${branch.students.length ? branch.students.map((student) => `
+              <article class="branch-mini-card">
+                <strong>${escapeHtml(student.student_name || 'Student')}</strong>
+                <span>${escapeHtml(student.student_email || '')}</span>
+              </article>
+            `).join('') : '<div class="chart-empty">No students in this branch yet.</div>'}
+          </div>
+          <div class="branch-column">
+            <h4>Teachers</h4>
+            ${branch.teachers.length ? branch.teachers.map((teacher) => `
+              <article class="branch-mini-card">
+                <strong>${escapeHtml(teacher.teacher_name || 'Teacher')}</strong>
+                <span>${escapeHtml(teacher.teacher_email || '')}</span>
+                <small>${escapeHtml(teacher.subject || 'No subject assigned')}</small>
+              </article>
+            `).join('') : '<div class="chart-empty">No teachers in this branch yet.</div>'}
+          </div>
+        </div>
+      </section>`;
+  }
+
+  function renderUniversityEnrollments() {
+    const grid = document.getElementById('universityEnrollmentGrid');
+    const branch = getSelectedBranch();
+    const enrollments = branch
+      ? (universityState.enrollments || []).filter((row) => String(row.dept_name || '') === String(branch.dept_name || ''))
+      : [];
+    const courses = universityState.courses || [];
+
+    if (!branch) {
+      grid.innerHTML = `
+        <div class="performance-empty">
+          <h3>Select a branch first</h3>
+          <p>Branch-specific enrollment management will appear here after you choose a branch.</p>
+        </div>`;
+      return;
+    }
+
+    if (enrollments.length === 0) {
+      grid.innerHTML = `
+        <div class="performance-empty">
+          <h3>No student enrollments in ${escapeHtml(branch.dept_name)}</h3>
+          <p>Student enrollments for this branch will appear here as soon as learners join courses.</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = enrollments.map(row => {
+      const courseOptions = courses
+        .filter(course => Number(course.course_id) !== Number(row.course_id))
+        .map(course => `<option value="${course.course_id}">${escapeHtml(course.course_name)}</option>`)
+        .join('');
+
+      return `
+        <article class="teacher-card">
+          <div class="teacher-card-head">
+            <div>
+              <h3>${escapeHtml(row.student_name || 'Student')}</h3>
+              <p>${escapeHtml(row.student_email || '')}</p>
+            </div>
+            <span class="performance-tag">Enrolled</span>
+          </div>
+          <div class="teacher-course">${escapeHtml(row.course_name || 'Course')}</div>
+          <div class="performance-metrics">
+            <div class="metric-row">
+              <span class="metric-label">Teacher</span>
+              <span class="metric-value">${escapeHtml(row.teacher_name || 'Unassigned')}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Department</span>
+              <span class="metric-value">${escapeHtml(row.dept_name || 'N/A')}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Enrolled On</span>
+              <span class="metric-value">${row.enrollment_date ? new Date(row.enrollment_date).toLocaleDateString() : 'N/A'}</span>
+            </div>
+          </div>
+          <div class="performance-focus">
+            <span>Change Course</span>
+            <div class="university-action-row">
+              <select id="courseChange-${row.enrollment_id}" class="university-select">
+                <option value="">Select new course</option>
+                ${courseOptions}
+              </select>
+              <button class="schedule-demo university-action-btn" data-action="change-course" data-enrollment-id="${row.enrollment_id}">Change</button>
+            </div>
+          </div>
+          <div class="university-action-row" style="margin-top:14px;">
+            <button class="get-started-free university-action-btn university-danger-btn" data-action="remove-enrollment" data-enrollment-id="${row.enrollment_id}">Remove From Course</button>
+          </div>
+        </article>`;
+    }).join('');
+  }
+
+  function renderUniversityTeachers() {
+    const grid = document.getElementById('universityTeacherGrid');
+    const branch = getSelectedBranch();
+    const teachers = branch
+      ? (universityState.teachers || []).filter((teacher) => String(teacher.dept_name || '') === String(branch.dept_name || ''))
+      : [];
+
+    if (!branch) {
+      grid.innerHTML = `
+        <div class="performance-empty">
+          <h3>Select a branch first</h3>
+          <p>Branch-specific teacher performance will appear here after you choose a branch.</p>
+        </div>`;
+      return;
+    }
+
+    if (teachers.length === 0) {
+      grid.innerHTML = `
+        <div class="performance-empty">
+          <h3>No teachers in ${escapeHtml(branch.dept_name)}</h3>
+          <p>Teacher performance data will appear here when teachers are added to this branch.</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = teachers.map(teacher => `
+      <article class="teacher-card">
+        <div class="teacher-card-head">
+          <div>
+            <h3>${escapeHtml(teacher.teacher_name || 'Teacher')}</h3>
+            <p>${escapeHtml(teacher.teacher_email || '')}</p>
+          </div>
+          <span class="performance-tag">${teacher.student_count || 0} Students</span>
+        </div>
+        <div class="teacher-course">${escapeHtml(teacher.dept_name || 'No Department')}</div>
+        <div class="performance-metrics">
+          <div class="metric-row">
+            <span class="metric-label">Avg Attendance</span>
+            <span class="metric-value">${fmt(teacher.avg_attendance_pct, '%')}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Avg Score</span>
+            <span class="metric-value">${fmt(teacher.avg_score_pct, '%')}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Uploaded Courses</span>
+            <span class="metric-value">${teacher.uploaded_course_count || 0}</span>
+          </div>
+        </div>
+      </article>
+    `).join('');
+  }
+
+  function renderUniversityUploads() {
+    const grid = document.getElementById('universityUploadGrid');
+    const branch = getSelectedBranch();
+    const uploads = branch
+      ? (universityState.courses || []).filter((course) =>
+        String(course.video_path || '').startsWith('/uploads/') &&
+        String(course.dept_name || '') === String(branch.dept_name || '')
+      )
+      : [];
+
+    if (!branch) {
+      grid.innerHTML = `
+        <div class="performance-empty">
+          <h3>Select a branch first</h3>
+          <p>Branch-specific uploaded files will appear here after you choose a branch.</p>
+        </div>`;
+      return;
+    }
+
+    if (uploads.length === 0) {
+      grid.innerHTML = `
+        <div class="performance-empty">
+          <h3>No uploaded files in ${escapeHtml(branch.dept_name)}</h3>
+          <p>Teacher-uploaded files for this branch will appear here when teachers upload them.</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = uploads.map(course => `
+      <article class="teacher-card">
+        <div class="teacher-card-head">
+          <div>
+            <h3>${escapeHtml(course.course_name || 'Course')}</h3>
+            <p>${escapeHtml(course.dept_name || 'No Department')}</p>
+          </div>
+          <span class="performance-tag">Uploaded File</span>
+        </div>
+        <div class="teacher-course">${escapeHtml(course.teacher_name || 'Teacher not assigned')}</div>
+        <div class="performance-metrics">
+          <div class="metric-row">
+            <span class="metric-label">Video Path</span>
+            <span class="metric-value">${escapeHtml(course.video_path || '')}</span>
+          </div>
+        </div>
+        <div class="university-action-row">
+          <button class="get-started-free university-action-btn university-danger-btn" data-action="delete-upload" data-course-id="${course.course_id}">Delete File</button>
+        </div>
+      </article>
+    `).join('');
+  }
+
+  async function postJson(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body || {})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  async function loadUniversityDashboard() {
+    const section = document.getElementById('universitySection');
+
+    try {
+      const res = await fetch('/api/university/dashboard', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load university dashboard');
+
+      universityState = {
+        summary: data.summary || {},
+        enrollments: Array.isArray(data.enrollments) ? data.enrollments : [],
+        courses: Array.isArray(data.courses) ? data.courses : [],
+        teachers: Array.isArray(data.teachers) ? data.teachers : [],
+        branches: Array.isArray(data.branches) ? data.branches : [],
+        selectedBranchId: null
+      };
+
+      section.style.display = 'block';
+      document.getElementById('universityStatus').textContent = 'Up to date';
+      renderUniversitySummary();
+      renderUniversityBranches();
+      renderSelectedBranchDetail();
+      renderUniversityEnrollments();
+      renderUniversityTeachers();
+      renderUniversityUploads();
+    } catch (error) {
+      section.style.display = 'block';
+      document.getElementById('universityStatus').textContent = 'Unavailable';
+      setStatusMessage('universityStatusMsg', 'error', error.message || 'Unable to load university dashboard.');
+    }
+  }
+
+  async function handleUniversityAction(event) {
+    const button = event.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.getAttribute('data-action');
+    const originalText = button.textContent;
+    button.disabled = true;
+    clearStatusMessage('universityStatusMsg');
+
+    try {
+      if (action === 'remove-enrollment') {
+        const enrollmentId = Number(button.getAttribute('data-enrollment-id'));
+        const data = await postJson('/api/university/enrollments/remove', { enrollmentId });
+        setStatusMessage('universityStatusMsg', 'success', data.message || 'Enrollment removed.');
+      } else if (action === 'change-course') {
+        const enrollmentId = Number(button.getAttribute('data-enrollment-id'));
+        const select = document.getElementById(`courseChange-${enrollmentId}`);
+        const newCourseId = Number(select && select.value || 0);
+        if (!newCourseId) throw new Error('Select a new course first.');
+        const data = await postJson('/api/university/enrollments/change', { enrollmentId, newCourseId });
+        setStatusMessage('universityStatusMsg', 'success', data.message || 'Student moved to the new course.');
+      } else if (action === 'delete-upload') {
+        const courseId = Number(button.getAttribute('data-course-id'));
+        const data = await postJson('/api/university/courses/remove-video', { courseId });
+        setStatusMessage('universityStatusMsg', 'success', data.message || 'Uploaded file deleted.');
+      }
+
+      await loadUniversityDashboard();
+    } catch (error) {
+      setStatusMessage('universityStatusMsg', 'error', error.message || 'Action failed.');
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+
   if (teacherUploadForm) {
     teacherUploadForm.addEventListener('submit', handleTeacherVideoUpload);
   }
+  document.getElementById('universityBranchSections').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-branch-id]');
+    if (!button) return;
+    universityState.selectedBranchId = Number(button.getAttribute('data-branch-id'));
+    renderUniversityBranches();
+    renderSelectedBranchDetail();
+    renderUniversityEnrollments();
+    renderUniversityTeachers();
+    renderUniversityUploads();
+  });
+  document.getElementById('universityEnrollmentGrid').addEventListener('click', handleUniversityAction);
+  document.getElementById('universityUploadGrid').addEventListener('click', handleUniversityAction);
 
-  // ─── Init ────────────────────────────────────
   async function init() {
     try {
       const res = await fetch('/api/me', { credentials: 'same-origin' });
-      if (!res.ok) { window.location.href = '/pages/login.html'; return; }
-      const user = await res.json();
+      if (!res.ok) {
+        window.location.href = '/pages/login.html';
+        return;
+      }
 
+      const user = await res.json();
+      const roleLabel = user.role === 'teacher' ? 'Teacher' : user.role === 'university' ? 'University' : 'Student';
       document.getElementById('welcomeTitle').innerHTML =
-        `Welcome back, <span class="journey">${user.username || 'Learner'}</span>`;
-      document.getElementById('welcomeUser').textContent =
-        `${user.role === 'teacher' ? '👨‍🏫 Teacher' : '🎓 Student'} • ${user.department || user.email}`;
+        `Welcome back, <span class="journey">${escapeHtml(user.username || 'Learner')}</span>`;
+      document.getElementById('welcomeUser').textContent = `${roleLabel} • ${user.department || user.email}`;
 
       if (user.role === 'student') {
         document.getElementById('studentSection').style.display = 'block';
@@ -443,8 +870,12 @@
       } else if (user.role === 'teacher') {
         document.getElementById('studentSection').style.display = 'none';
         loadTeacherDashboard();
+      } else if (user.role === 'university') {
+        document.getElementById('studentSection').style.display = 'none';
+        document.getElementById('teacherSection').style.display = 'none';
+        loadUniversityDashboard();
       }
-    } catch (e) {
+    } catch (_error) {
       window.location.href = '/pages/login.html';
     }
   }

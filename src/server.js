@@ -16,7 +16,7 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-// ─── Multer for video uploads ────────────────
+//  ─── Multer for video uploads ────────────────
 const uploadStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
   filename: (_req, file, cb) => {
@@ -61,6 +61,10 @@ app.get("/UIUX_vid.html", (_req, res) => res.redirect("/pages/uiux-video.html"))
 app.use("/uploads", (req, res, next) => {
   if (!req.session.userId || !req.session.user) {
     return res.status(401).send("Please log in first");
+  }
+
+  if (req.session.user.role === "university") {
+    return next();
   }
 
   const userDeptId = Number(req.session.user.dept_id);

@@ -10,7 +10,7 @@
 
 <header class="navbar">
   <a href="/pages/home.html" class="logo">
-    <span class="logo-icon">📖</span>
+    <span class="logo-icon">Learn</span>
     <span class="logo-text">Learnix</span>
   </a>
   <nav>
@@ -27,9 +27,9 @@
 
 <main>
   <section class="hero">
-    <div class="transform-banner"><span>Welcome Back 👋</span></div>
+    <div class="transform-banner"><span>Welcome Back</span></div>
     <h1>Log in to <span class="journey">Learnix</span></h1>
-    <p class="subtitle">Continue your learning journey.</p>
+    <p class="subtitle">OTP is disabled. Use your email, password, and role to sign in.</p>
 
     <form class="demo-form" id="loginForm" action="/login" method="post">
       <input type="email" name="username" id="loginEmail" placeholder="Email Address" required>
@@ -37,17 +37,19 @@
 
       <div class="show-password-toggle">
         <input type="checkbox" id="showPwd" onchange="document.getElementById('loginPassword').type = this.checked ? 'text' : 'password'">
-        <label for="showPwd">👁 Show Password</label>
+        <label for="showPwd">Show Password</label>
       </div>
 
-      <select name="role" required>
+      <select name="role" id="loginRole" required>
         <option value="" disabled selected>Select Role</option>
         <option value="student">Student</option>
         <option value="teacher">Teacher</option>
+        <option value="university">University</option>
       </select>
 
-      <input type="text" name="department" id="deptInput" placeholder="Department" required>
-      <datalist id="deptList"></datalist>
+      <select name="branch" id="loginBranch" style="display:none;">
+        <option value="" disabled selected>Select Branch</option>
+      </select>
 
       <button type="submit" class="get-started-free">Log In</button>
     </form>
@@ -65,27 +67,33 @@
 
 <script src="/assets/js/main.js"></script>
 <script>
-  // Load departments as suggestions
-  fetch('/api/departments').then(r => r.json()).then(data => {
-    const list = document.getElementById('deptList');
-    const input = document.getElementById('deptInput');
-    if (list && data.departments) {
-      data.departments.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d.dept_name;
-        list.appendChild(opt);
-      });
-      input.setAttribute('list', 'deptList');
-    }
-  }).catch(() => {});
-
-  // Handle form errors from server redirect
+  const loginError = document.getElementById('loginError');
+  const loginRole = document.getElementById('loginRole');
+  const loginBranch = document.getElementById('loginBranch');
   const params = new URLSearchParams(window.location.search);
   if (params.get('error')) {
-    const err = document.getElementById('loginError');
-    err.textContent = decodeURIComponent(params.get('error'));
-    err.style.display = 'block';
+    loginError.textContent = decodeURIComponent(params.get('error'));
+    loginError.style.display = 'block';
   }
+
+  function syncBranchVisibility() {
+    const needsBranch = loginRole.value === 'student' || loginRole.value === 'teacher';
+    loginBranch.style.display = needsBranch ? 'block' : 'none';
+    loginBranch.required = needsBranch;
+    if (!needsBranch) loginBranch.value = '';
+  }
+
+  loginRole.addEventListener('change', syncBranchVisibility);
+  syncBranchVisibility();
+
+  fetch('/api/departments').then((r) => r.json()).then((data) => {
+    (data.departments || []).forEach((dept) => {
+      const option = document.createElement('option');
+      option.value = dept.dept_name;
+      option.textContent = dept.dept_name;
+      loginBranch.appendChild(option);
+    });
+  }).catch(() => {});
 </script>
 </body>
 </html>

@@ -464,6 +464,35 @@ img { max-width: 100%; }
 .demo-form button:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: var(--shadow); }
 .demo-form button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
+.signup-tabs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 0 auto 18px;
+  max-width: 440px;
+}
+.signup-tab {
+  border: 1.5px solid var(--border);
+  background: var(--bg-white);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-family: var(--font);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.signup-tab.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+.signup-panel { display: none; gap: 14px; }
+.signup-panel.active { display: flex; flex-direction: column; }
+
 /* ─── Courses ────────────────────────────────── */
 .course-grid {
   display: grid;
@@ -1147,6 +1176,121 @@ img { max-width: 100%; }
 }
 .donut-center strong { font-size: 1.3rem; font-weight: 800; line-height: 1; display: block; }
 .donut-center span { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+.university-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.university-branch-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.university-branch-detail {
+  margin-bottom: 28px;
+}
+.branch-selector {
+  border: 1.5px solid var(--border);
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.branch-selector:hover,
+.branch-selector.active {
+  border-color: var(--blue);
+  box-shadow: var(--shadow);
+}
+.branch-selector strong {
+  font-size: 1rem;
+  color: var(--text);
+}
+.branch-selector span {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+.branch-section {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+}
+.branch-section-head h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.branch-section-head p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.branch-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.branch-column h4 {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.branch-column {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.branch-mini-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.branch-mini-card span,
+.branch-mini-card small {
+  color: var(--text-muted);
+}
+.university-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.university-select {
+  flex: 1;
+  min-width: 180px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-white);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.9rem;
+}
+.university-action-btn {
+  border: none;
+  cursor: pointer;
+}
+.university-danger-btn {
+  background: #dc2626;
+}
+.university-danger-btn:hover {
+  background: #b91c1c;
+}
 
 /* ─── My Courses Panel ───────────────────────── */
 .courses-panel {
