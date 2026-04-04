@@ -16,6 +16,7 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
+
 //  ─── Multer for video uploads ────────────────
 const uploadStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
@@ -63,7 +64,7 @@ app.use("/uploads", (req, res, next) => {
     return res.status(401).send("Please log in first");
   }
 
-  if (req.session.user.role === "university") {
+  if (req.session.user.role === "university" || req.session.user.role === "admin") {
     return next();
   }
 

@@ -13,6 +13,8 @@ const DEPT_TABLE = "dept";
 const COURSE_TABLE = "courses";
 const ENROLL_TABLE = "enrollment";
 const PERFORMANCE_TABLE = "student_performance";
+const ADMIN_EMAIL = "admin@gmail.com";
+const ADMIN_PASSWORD = "Admin@123";
 
 const COURSE_VIDEO_MAP = {
   "web development": "/pages/webdev-video.html",
@@ -101,6 +103,18 @@ const requireUniversity = (req, res) => {
   }
   if (!req.session.user || req.session.user.role !== "university") {
     res.status(403).json({ error: "University access only" });
+    return false;
+  }
+  return true;
+};
+
+const requireAdmin = (req, res) => {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return false;
+  }
+  if (!req.session.user || req.session.user.role !== "admin") {
+    res.status(403).json({ error: "Admin access only" });
     return false;
   }
   return true;
@@ -217,8 +231,29 @@ router.post("/login", (req, res) => {
   const password = normalizeText(req.body && req.body.password);
   const branch = normalizeText(req.body && req.body.branch);
 
-  if (!role || !email || !password) {
+  if (!email || !password) {
     return res.status(400).send("All fields are required");
+  }
+
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    completeLoginSession(req, {
+      id: "admin-root",
+      username: "Platform Admin",
+      email: ADMIN_EMAIL,
+      role: "admin",
+      dept_id: null,
+      department: "All Departments",
+      university_id: null,
+      university_name: "All Universities",
+      principal_name: null,
+      subject: null,
+      userSource: "admin"
+    });
+    return res.redirect("/dashboard");
+  }
+
+  if (!role) {
+    return res.status(400).send("Please select a role");
   }
 
   if (role === "university") {
@@ -632,7 +667,7 @@ router.get("/api/university/dashboard", (req, res) => {
        JOIN ${AUTH_TABLE} u ON u.id = e.auth_user_id
        JOIN ${COURSE_TABLE} c ON c.course_id = e.course_id
        LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
-       LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = c.dept_id
+       LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = u.dept_id
        WHERE u.university_id = ?
        ORDER BY e.enrollment_date DESC, u.username ASC`,
       [universityId],
@@ -731,6 +766,447 @@ router.get("/api/university/dashboard", (req, res) => {
         );
       }
     );
+  });
+});
+
+router.get("/api/admin/dashboard", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const summarySql = `
+    SELECT
+      (SELECT COUNT(*) FROM ${UNIVERSITY_TABLE}) AS total_universities,
+      (SELECT COUNT(*) FROM ${TEACHER_TABLE}) AS total_teachers,
+      (SELECT COUNT(*) FROM ${AUTH_TABLE} WHERE role = 'student') AS total_students,
+      (SELECT COUNT(*) FROM ${COURSE_TABLE}) AS total_courses,
+      (SELECT COUNT(*) FROM ${ENROLL_TABLE}) AS total_enrollments,
+      (SELECT COUNT(*) FROM ${COURSE_TABLE} WHERE video_path LIKE '/uploads/%') AS total_uploads
+  `;
+
+  db.query(summarySql, (summaryErr, summaryRows) => {
+    if (summaryErr) return res.status(500).json({ error: "Failed to load admin summary" });
+
+    db.query(
+      `SELECT university_id, university_name, email, principal_name, created_at
+       FROM ${UNIVERSITY_TABLE}
+       ORDER BY university_name ASC`,
+      (uniErr, universities) => {
+        if (uniErr) return res.status(500).json({ error: "Failed to load universities" });
+
+        db.query(
+          `SELECT t.teacher_id, t.name, t.email, t.subject, t.dept_id, t.university_id, t.created_at,
+                  d.dept_name, u.university_name
+           FROM ${TEACHER_TABLE} t
+           LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = t.dept_id
+           LEFT JOIN ${UNIVERSITY_TABLE} u ON u.university_id = t.university_id
+           ORDER BY t.name ASC`,
+          (teacherErr, teachers) => {
+            if (teacherErr) return res.status(500).json({ error: "Failed to load teachers" });
+
+            db.query(
+              `SELECT s.id, s.username, s.email, s.dept_id, s.university_id, s.created_at,
+                      d.dept_name, u.university_name
+               FROM ${AUTH_TABLE} s
+               LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = s.dept_id
+               LEFT JOIN ${UNIVERSITY_TABLE} u ON u.university_id = s.university_id
+               WHERE s.role = 'student'
+               ORDER BY s.username ASC`,
+              (studentErr, students) => {
+                if (studentErr) return res.status(500).json({ error: "Failed to load students" });
+
+                db.query(
+                  `SELECT c.course_id, c.course_name, c.credits, c.dept_id, c.teacher_id, c.video_path, c.created_at,
+                          d.dept_name, t.name AS teacher_name, u.university_name
+                   FROM ${COURSE_TABLE} c
+                   LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = c.dept_id
+                   LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
+                   LEFT JOIN ${UNIVERSITY_TABLE} u ON u.university_id = t.university_id
+                   ORDER BY c.course_name ASC`,
+                  (courseErr, courses) => {
+                    if (courseErr) return res.status(500).json({ error: "Failed to load courses" });
+
+                    db.query(
+                      `SELECT e.enrollment_id, e.enrollment_date, e.auth_user_id, e.course_id,
+                              s.username AS student_name, s.email AS student_email,
+                              c.course_name, d.dept_name, t.name AS teacher_name, u.university_name
+                       FROM ${ENROLL_TABLE} e
+                       JOIN ${AUTH_TABLE} s ON s.id = e.auth_user_id
+                       JOIN ${COURSE_TABLE} c ON c.course_id = e.course_id
+                       LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = c.dept_id
+                       LEFT JOIN ${TEACHER_TABLE} t ON t.teacher_id = c.teacher_id
+                       LEFT JOIN ${UNIVERSITY_TABLE} u ON u.university_id = s.university_id
+                       ORDER BY e.enrollment_date DESC, s.username ASC`,
+                      (enrollErr, enrollments) => {
+                        if (enrollErr) return res.status(500).json({ error: "Failed to load enrollments" });
+
+                        return res.json({
+                          summary: summaryRows && summaryRows[0] ? summaryRows[0] : {},
+                          universities: universities || [],
+                          teachers: teachers || [],
+                          students: students || [],
+                          courses: (courses || []).map((course) => ({
+                            ...course,
+                            video_path: resolveCourseVideoPath(course.course_name, course.video_path)
+                          })),
+                          enrollments: enrollments || [],
+                          uploads: (courses || [])
+                            .filter((course) => String(course.video_path || "").startsWith("/uploads/"))
+                            .map((course) => ({
+                              course_id: course.course_id,
+                              course_name: course.course_name,
+                              video_path: course.video_path,
+                              dept_name: course.dept_name,
+                              teacher_id: course.teacher_id,
+                              teacher_name: course.teacher_name,
+                              university_name: course.university_name
+                            }))
+                        });
+                      }
+                    );
+                  }
+                );
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+});
+
+router.post("/api/admin/universities/save", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const universityId = Number(req.body && req.body.universityId);
+  const universityName = normalizeText(req.body && req.body.universityName);
+  const email = normalizeEmail(req.body && req.body.email);
+  const principalName = normalizeText(req.body && req.body.principalName);
+  const password = normalizeText(req.body && req.body.password);
+
+  if (!universityName || !email || !principalName) {
+    return res.status(400).json({ error: "University name, email, and principal name are required" });
+  }
+
+  if (universityId) {
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      db.query(
+        `UPDATE ${UNIVERSITY_TABLE}
+         SET university_name = ?, email = ?, principal_name = ?, password = ?
+         WHERE university_id = ?`,
+        [universityName, email, principalName, hashedPassword, universityId],
+        (err) => {
+          if (err) return res.status(500).json({ error: "Failed to update university" });
+          return res.json({ message: "University updated successfully" });
+        }
+      );
+      return;
+    }
+
+    db.query(
+      `UPDATE ${UNIVERSITY_TABLE}
+       SET university_name = ?, email = ?, principal_name = ?
+       WHERE university_id = ?`,
+      [universityName, email, principalName, universityId],
+      (err) => {
+        if (err) return res.status(500).json({ error: "Failed to update university" });
+        return res.json({ message: "University updated successfully" });
+      }
+    );
+    return;
+  }
+
+  if (!password) return res.status(400).json({ error: "Password is required for new universities" });
+  const hashedPassword = await bcrypt.hash(password, 10);
+  db.query(
+    `INSERT INTO ${UNIVERSITY_TABLE} (university_name, email, principal_name, password)
+     VALUES (?, ?, ?, ?)`,
+    [universityName, email, principalName, hashedPassword],
+    (err) => {
+      if (err) return res.status(500).json({ error: "Failed to create university" });
+      return res.json({ message: "University added successfully" });
+    }
+  );
+});
+
+router.post("/api/admin/universities/delete", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const universityId = Number(req.body && req.body.universityId);
+  if (!universityId) return res.status(400).json({ error: "universityId is required" });
+
+  db.query(`DELETE FROM ${UNIVERSITY_TABLE} WHERE university_id = ?`, [universityId], (err) => {
+    if (err) return res.status(500).json({ error: "Failed to delete university" });
+    return res.json({ message: "University deleted successfully" });
+  });
+});
+
+router.post("/api/admin/teachers/save", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const teacherId = Number(req.body && req.body.teacherId);
+  const name = normalizeText(req.body && req.body.name);
+  const email = normalizeEmail(req.body && req.body.email);
+  const subject = normalizeText(req.body && req.body.subject);
+  const branch = normalizeText(req.body && req.body.branch);
+  const universityName = normalizeText(req.body && req.body.universityName);
+  const password = normalizeText(req.body && req.body.password);
+
+  if (!name || !email || !branch || !universityName) {
+    return res.status(400).json({ error: "Name, email, branch, and university are required" });
+  }
+
+  findUniversityByName(universityName, (uniErr, university) => {
+    if (uniErr) return res.status(400).json({ error: uniErr.message });
+    resolveDeptId({ branch, createIfMissing: true }, async (deptErr, deptId) => {
+      if (deptErr || !deptId) return res.status(400).json({ error: "Invalid branch" });
+
+      if (teacherId) {
+        if (password) {
+          const hashedPassword = await bcrypt.hash(password, 10);
+          db.query(
+            `UPDATE ${TEACHER_TABLE}
+             SET name = ?, email = ?, dept_id = ?, university_id = ?, subject = ?, password = ?
+             WHERE teacher_id = ?`,
+            [name, email, deptId, university.university_id, subject || null, hashedPassword, teacherId],
+            (err) => {
+              if (err) return res.status(500).json({ error: "Failed to update teacher" });
+              return res.json({ message: "Teacher updated successfully" });
+            }
+          );
+          return;
+        }
+
+        db.query(
+          `UPDATE ${TEACHER_TABLE}
+           SET name = ?, email = ?, dept_id = ?, university_id = ?, subject = ?
+           WHERE teacher_id = ?`,
+          [name, email, deptId, university.university_id, subject || null, teacherId],
+          (err) => {
+            if (err) return res.status(500).json({ error: "Failed to update teacher" });
+            return res.json({ message: "Teacher updated successfully" });
+          }
+        );
+        return;
+      }
+
+      if (!password) return res.status(400).json({ error: "Password is required for new teachers" });
+      const hashedPassword = await bcrypt.hash(password, 10);
+      db.query(
+        `INSERT INTO ${TEACHER_TABLE} (name, email, dept_id, university_id, subject, password)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [name, email, deptId, university.university_id, subject || null, hashedPassword],
+        (err) => {
+          if (err) return res.status(500).json({ error: "Failed to add teacher" });
+          return res.json({ message: "Teacher added successfully" });
+        }
+      );
+    });
+  });
+});
+
+router.post("/api/admin/teachers/delete", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const teacherId = Number(req.body && req.body.teacherId);
+  if (!teacherId) return res.status(400).json({ error: "teacherId is required" });
+
+  db.query(`DELETE FROM ${TEACHER_TABLE} WHERE teacher_id = ?`, [teacherId], (err) => {
+    if (err) return res.status(500).json({ error: "Failed to delete teacher" });
+    return res.json({ message: "Teacher deleted successfully" });
+  });
+});
+
+router.post("/api/admin/students/save", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const studentId = Number(req.body && req.body.studentId);
+  const username = normalizeText(req.body && req.body.username);
+  const email = normalizeEmail(req.body && req.body.email);
+  const branch = normalizeText(req.body && req.body.branch);
+  const universityName = normalizeText(req.body && req.body.universityName);
+  const password = normalizeText(req.body && req.body.password);
+
+  if (!username || !email || !branch || !universityName) {
+    return res.status(400).json({ error: "Name, email, branch, and university are required" });
+  }
+
+  findUniversityByName(universityName, (uniErr, university) => {
+    if (uniErr) return res.status(400).json({ error: uniErr.message });
+    resolveDeptId({ branch, createIfMissing: true }, async (deptErr, deptId) => {
+      if (deptErr || !deptId) return res.status(400).json({ error: "Invalid branch" });
+
+      if (studentId) {
+        if (password) {
+          const hashedPassword = await bcrypt.hash(password, 10);
+          db.query(
+            `UPDATE ${AUTH_TABLE}
+             SET username = ?, email = ?, dept_id = ?, university_id = ?, password = ?
+             WHERE id = ? AND role = 'student'`,
+            [username, email, deptId, university.university_id, hashedPassword, studentId],
+            (err) => {
+              if (err) return res.status(500).json({ error: "Failed to update student" });
+              return res.json({ message: "Student updated successfully" });
+            }
+          );
+          return;
+        }
+
+        db.query(
+          `UPDATE ${AUTH_TABLE}
+           SET username = ?, email = ?, dept_id = ?, university_id = ?
+           WHERE id = ? AND role = 'student'`,
+          [username, email, deptId, university.university_id, studentId],
+          (err) => {
+            if (err) return res.status(500).json({ error: "Failed to update student" });
+            return res.json({ message: "Student updated successfully" });
+          }
+        );
+        return;
+      }
+
+      if (!password) return res.status(400).json({ error: "Password is required for new students" });
+      const hashedPassword = await bcrypt.hash(password, 10);
+      db.query(
+        `INSERT INTO ${AUTH_TABLE} (username, email, role, dept_id, university_id, password)
+         VALUES (?, ?, 'student', ?, ?, ?)`,
+        [username, email, deptId, university.university_id, hashedPassword],
+        (err) => {
+          if (err) return res.status(500).json({ error: "Failed to add student" });
+          return res.json({ message: "Student added successfully" });
+        }
+      );
+    });
+  });
+});
+
+router.post("/api/admin/students/delete", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const studentId = Number(req.body && req.body.studentId);
+  if (!studentId) return res.status(400).json({ error: "studentId is required" });
+
+  db.query(`DELETE FROM ${AUTH_TABLE} WHERE id = ? AND role = 'student'`, [studentId], (err) => {
+    if (err) return res.status(500).json({ error: "Failed to delete student" });
+    return res.json({ message: "Student deleted successfully" });
+  });
+});
+
+router.post("/api/admin/courses/save", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const courseId = Number(req.body && req.body.courseId);
+  const courseName = normalizeText(req.body && req.body.courseName);
+  const credits = Number(req.body && req.body.credits) || 3;
+  const branch = normalizeText(req.body && req.body.branch);
+  const teacherId = Number(req.body && req.body.teacherId) || null;
+
+  if (!courseName || !branch) {
+    return res.status(400).json({ error: "Course name and branch are required" });
+  }
+
+  resolveDeptId({ branch, createIfMissing: true }, (deptErr, deptId) => {
+    if (deptErr || !deptId) return res.status(400).json({ error: "Invalid branch" });
+
+    if (courseId) {
+      db.query(
+        `UPDATE ${COURSE_TABLE}
+         SET course_name = ?, credits = ?, dept_id = ?, teacher_id = ?
+         WHERE course_id = ?`,
+        [courseName, credits, deptId, teacherId, courseId],
+        (err) => {
+          if (err) return res.status(500).json({ error: "Failed to update course" });
+          return res.json({ message: "Course updated successfully" });
+        }
+      );
+      return;
+    }
+
+    db.query(
+      `INSERT INTO ${COURSE_TABLE} (course_name, credits, dept_id, teacher_id)
+       VALUES (?, ?, ?, ?)`,
+      [courseName, credits, deptId, teacherId],
+      (err) => {
+        if (err) return res.status(500).json({ error: "Failed to add course" });
+        return res.json({ message: "Course added successfully" });
+      }
+    );
+  });
+});
+
+router.post("/api/admin/courses/delete", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const courseId = Number(req.body && req.body.courseId);
+  if (!courseId) return res.status(400).json({ error: "courseId is required" });
+
+  db.query(`DELETE FROM ${COURSE_TABLE} WHERE course_id = ?`, [courseId], (err) => {
+    if (err) return res.status(500).json({ error: "Failed to delete course" });
+    return res.json({ message: "Course deleted successfully" });
+  });
+});
+
+router.post("/api/admin/enrollments/save", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const enrollmentId = Number(req.body && req.body.enrollmentId);
+  const studentId = Number(req.body && req.body.studentId);
+  const courseId = Number(req.body && req.body.courseId);
+
+  if (!studentId || !courseId) {
+    return res.status(400).json({ error: "studentId and courseId are required" });
+  }
+
+  if (enrollmentId) {
+    db.query(
+      `UPDATE ${ENROLL_TABLE}
+       SET auth_user_id = ?, course_id = ?, enrollment_date = CURDATE()
+       WHERE enrollment_id = ?`,
+      [studentId, courseId, enrollmentId],
+      (err) => {
+        if (err) return res.status(500).json({ error: "Failed to update enrollment" });
+        return res.json({ message: "Enrollment updated successfully" });
+      }
+    );
+    return;
+  }
+
+  db.query(
+    `INSERT INTO ${ENROLL_TABLE} (auth_user_id, course_id, enrollment_date)
+     VALUES (?, ?, CURDATE())`,
+    [studentId, courseId],
+    (err) => {
+      if (err) return res.status(500).json({ error: "Failed to add enrollment" });
+      return res.json({ message: "Enrollment added successfully" });
+    }
+  );
+});
+
+router.post("/api/admin/enrollments/delete", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const enrollmentId = Number(req.body && req.body.enrollmentId);
+  if (!enrollmentId) return res.status(400).json({ error: "enrollmentId is required" });
+
+  db.query(`DELETE FROM ${ENROLL_TABLE} WHERE enrollment_id = ?`, [enrollmentId], (err) => {
+    if (err) return res.status(500).json({ error: "Failed to delete enrollment" });
+    return res.json({ message: "Enrollment deleted successfully" });
+  });
+});
+
+router.post("/api/admin/uploads/delete", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const courseId = Number(req.body && req.body.courseId);
+  if (!courseId) return res.status(400).json({ error: "courseId is required" });
+
+  db.query(`SELECT video_path FROM ${COURSE_TABLE} WHERE course_id = ? LIMIT 1`, [courseId], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Failed to validate upload" });
+    if (!rows || rows.length === 0) return res.status(404).json({ error: "Course not found" });
+    if (!String(rows[0].video_path || "").startsWith("/uploads/")) {
+      return res.status(400).json({ error: "No uploaded file found for this course" });
+    }
+
+    const absoluteFile = path.join(__dirname, "..", "..", "public", String(rows[0].video_path).replace(/^\//, ""));
+    db.query(`UPDATE ${COURSE_TABLE} SET video_path = NULL WHERE course_id = ?`, [courseId], (updateErr) => {
+      if (updateErr) return res.status(500).json({ error: "Failed to remove upload" });
+      fs.unlink(absoluteFile, () => {
+        return res.json({ message: "Uploaded file deleted successfully" });
+      });
+    });
   });
 });
 

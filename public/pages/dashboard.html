@@ -5,6 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard | Learnix</title>
   <link rel="stylesheet" href="/assets/css/main.css">
+  <style>
+    .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 18px; }
+    .admin-card, .admin-item { background: #fff; border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 20px; padding: 20px; box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08); }
+    .admin-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 18px; }
+    .admin-list { display: grid; gap: 14px; }
+    .admin-item-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+    .admin-item-head h4 { margin: 0; font-size: 0.98rem; }
+    .admin-item-head p { margin: 4px 0 0; font-size: 0.84rem; color: var(--text-muted); }
+    .admin-meta { display: grid; gap: 8px; color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px; }
+    .admin-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .admin-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 18px 0; }
+    .admin-summary-card { background: linear-gradient(135deg, #0f172a, #1d4ed8); color: #fff; border-radius: 18px; padding: 18px; }
+    .admin-summary-card span { display: block; font-size: 0.82rem; opacity: 0.85; margin-bottom: 8px; }
+    .admin-summary-card strong { font-size: 1.7rem; }
+    .admin-section-block { margin-top: 30px; }
+    @media (max-width: 720px) {
+      .admin-item-head, .admin-actions { flex-direction: column; }
+    }
+  </style>
 </head>
 <body>
 
@@ -192,6 +211,83 @@
     </div>
     <div id="universityUploadGrid" class="university-grid"><div class="teacher-card loading"><h3 style="margin:0;">Loading uploaded files...</h3></div></div>
   </section>
+
+  <section class="dashboard-section" id="adminSection" style="display:none;">
+    <div class="dashboard-header">
+      <div>
+        <span class="dashboard-kicker">Admin Dashboard</span>
+        <h2>Platform Control Center</h2>
+        <p>Manage all universities, teachers, students, courses, student enrollments, and uploaded teaching files.</p>
+      </div>
+      <div class="dashboard-badge" id="adminStatus">Loading...</div>
+    </div>
+
+    <div id="adminStatusMsg" class="status-msg" style="display:none;margin:0 0 16px;"></div>
+    <div class="admin-summary" id="adminSummary"></div>
+
+    <div class="admin-section-block">
+      <div class="subject-panel">
+        <h3 style="margin:0 0 10px;">Universities</h3>
+        <p style="margin:0;color:var(--text-muted);">Add, update, and delete university accounts.</p>
+      </div>
+      <div class="admin-toolbar">
+        <button class="get-started-free" data-admin-create="university">Add University</button>
+      </div>
+      <div class="admin-list" id="adminUniversityList"></div>
+    </div>
+
+    <div class="admin-section-block">
+      <div class="subject-panel">
+        <h3 style="margin:0 0 10px;">Teachers</h3>
+        <p style="margin:0;color:var(--text-muted);">Manage teacher accounts, departments, and subjects.</p>
+      </div>
+      <div class="admin-toolbar">
+        <button class="get-started-free" data-admin-create="teacher">Add Teacher</button>
+      </div>
+      <div class="admin-list" id="adminTeacherList"></div>
+    </div>
+
+    <div class="admin-section-block">
+      <div class="subject-panel">
+        <h3 style="margin:0 0 10px;">Students</h3>
+        <p style="margin:0;color:var(--text-muted);">Manage student accounts across all universities.</p>
+      </div>
+      <div class="admin-toolbar">
+        <button class="get-started-free" data-admin-create="student">Add Student</button>
+      </div>
+      <div class="admin-list" id="adminStudentList"></div>
+    </div>
+
+    <div class="admin-section-block">
+      <div class="subject-panel">
+        <h3 style="margin:0 0 10px;">Courses</h3>
+        <p style="margin:0;color:var(--text-muted);">Control the course catalog and teacher assignments.</p>
+      </div>
+      <div class="admin-toolbar">
+        <button class="get-started-free" data-admin-create="course">Add Course</button>
+      </div>
+      <div class="admin-list" id="adminCourseList"></div>
+    </div>
+
+    <div class="admin-section-block">
+      <div class="subject-panel">
+        <h3 style="margin:0 0 10px;">Enrollments</h3>
+        <p style="margin:0;color:var(--text-muted);">Review and manage the courses students have taken.</p>
+      </div>
+      <div class="admin-toolbar">
+        <button class="get-started-free" data-admin-create="enrollment">Add Enrollment</button>
+      </div>
+      <div class="admin-list" id="adminEnrollmentList"></div>
+    </div>
+
+    <div class="admin-section-block">
+      <div class="subject-panel">
+        <h3 style="margin:0 0 10px;">Uploaded Files</h3>
+        <p style="margin:0;color:var(--text-muted);">Review every teacher-uploaded file and remove bad uploads.</p>
+      </div>
+      <div class="admin-list" id="adminUploadList"></div>
+    </div>
+  </section>
 </main>
 
 <footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
@@ -202,6 +298,7 @@
   const teacherUploadForm = document.getElementById('teacherUploadForm');
   let teacherCache = [];
   let universityState = { enrollments: [], courses: [], teachers: [], branches: [], summary: {}, selectedBranchId: null };
+  let adminState = { summary: {}, universities: [], teachers: [], students: [], courses: [], enrollments: [], uploads: [] };
 
   function escapeHtml(value) {
     return String(value || '')
@@ -225,6 +322,12 @@
     if (!el) return;
     el.textContent = '';
     el.style.display = 'none';
+  }
+
+  function formatDate(value) {
+    if (!value) return 'N/A';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? 'N/A' : parsed.toLocaleDateString();
   }
 
   function renderPerformanceCards(perf) {
@@ -798,6 +901,327 @@
     }
   }
 
+  function renderAdminSummary() {
+    const summary = adminState.summary || {};
+    document.getElementById('adminSummary').innerHTML = [
+      ['Universities', summary.total_universities ?? 0],
+      ['Teachers', summary.total_teachers ?? 0],
+      ['Students', summary.total_students ?? 0],
+      ['Courses', summary.total_courses ?? 0],
+      ['Enrollments', summary.total_enrollments ?? 0],
+      ['Uploads', summary.total_uploads ?? 0]
+    ].map(([label, value]) => `
+      <div class="admin-summary-card">
+        <span>${escapeHtml(label)}</span>
+        <strong>${value}</strong>
+      </div>
+    `).join('');
+  }
+
+  function renderAdminList(targetId, items, emptyTitle, emptyText, renderer) {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    if (!items || items.length === 0) {
+      el.innerHTML = `<div class="performance-empty"><h3>${escapeHtml(emptyTitle)}</h3><p>${escapeHtml(emptyText)}</p></div>`;
+      return;
+    }
+    el.innerHTML = items.map(renderer).join('');
+  }
+
+  function renderAdminDashboard() {
+    renderAdminSummary();
+
+    renderAdminList('adminUniversityList', adminState.universities, 'No universities yet', 'Create the first university from the button above.', (item) => `
+      <article class="admin-item">
+        <div class="admin-item-head">
+          <div>
+            <h4>${escapeHtml(item.university_name || 'University')}</h4>
+            <p>${escapeHtml(item.email || '')}</p>
+          </div>
+          <span class="performance-tag">University</span>
+        </div>
+        <div class="admin-meta">
+          <span>Principal: ${escapeHtml(item.principal_name || 'N/A')}</span>
+          <span>Created: ${formatDate(item.created_at)}</span>
+        </div>
+        <div class="admin-actions">
+          <button class="schedule-demo" data-admin-edit="university" data-id="${item.university_id}">Edit</button>
+          <button class="get-started-free university-danger-btn" data-admin-delete="university" data-id="${item.university_id}">Delete</button>
+        </div>
+      </article>
+    `);
+
+    renderAdminList('adminTeacherList', adminState.teachers, 'No teachers yet', 'Teachers added by the admin will appear here.', (item) => `
+      <article class="admin-item">
+        <div class="admin-item-head">
+          <div>
+            <h4>${escapeHtml(item.name || 'Teacher')}</h4>
+            <p>${escapeHtml(item.email || '')}</p>
+          </div>
+          <span class="performance-tag">${escapeHtml(item.subject || 'Teacher')}</span>
+        </div>
+        <div class="admin-meta">
+          <span>Branch: ${escapeHtml(item.dept_name || 'N/A')}</span>
+          <span>University: ${escapeHtml(item.university_name || 'N/A')}</span>
+          <span>Created: ${formatDate(item.created_at)}</span>
+        </div>
+        <div class="admin-actions">
+          <button class="schedule-demo" data-admin-edit="teacher" data-id="${item.teacher_id}">Edit</button>
+          <button class="get-started-free university-danger-btn" data-admin-delete="teacher" data-id="${item.teacher_id}">Delete</button>
+        </div>
+      </article>
+    `);
+
+    renderAdminList('adminStudentList', adminState.students, 'No students yet', 'Students added by the admin will appear here.', (item) => `
+      <article class="admin-item">
+        <div class="admin-item-head">
+          <div>
+            <h4>${escapeHtml(item.username || 'Student')}</h4>
+            <p>${escapeHtml(item.email || '')}</p>
+          </div>
+          <span class="performance-tag">Student</span>
+        </div>
+        <div class="admin-meta">
+          <span>Branch: ${escapeHtml(item.dept_name || 'N/A')}</span>
+          <span>University: ${escapeHtml(item.university_name || 'N/A')}</span>
+          <span>Created: ${formatDate(item.created_at)}</span>
+        </div>
+        <div class="admin-actions">
+          <button class="schedule-demo" data-admin-edit="student" data-id="${item.id}">Edit</button>
+          <button class="get-started-free university-danger-btn" data-admin-delete="student" data-id="${item.id}">Delete</button>
+        </div>
+      </article>
+    `);
+
+    renderAdminList('adminCourseList', adminState.courses, 'No courses yet', 'Courses created by the admin will appear here.', (item) => `
+      <article class="admin-item">
+        <div class="admin-item-head">
+          <div>
+            <h4>${escapeHtml(item.course_name || 'Course')}</h4>
+            <p>${escapeHtml(item.teacher_name || 'No teacher assigned')}</p>
+          </div>
+          <span class="performance-tag">${item.credits || 0} Credits</span>
+        </div>
+        <div class="admin-meta">
+          <span>Branch: ${escapeHtml(item.dept_name || 'N/A')}</span>
+          <span>University: ${escapeHtml(item.university_name || 'N/A')}</span>
+          <span>Video: ${escapeHtml(item.video_path || 'None')}</span>
+        </div>
+        <div class="admin-actions">
+          <button class="schedule-demo" data-admin-edit="course" data-id="${item.course_id}">Edit</button>
+          <button class="get-started-free university-danger-btn" data-admin-delete="course" data-id="${item.course_id}">Delete</button>
+        </div>
+      </article>
+    `);
+
+    renderAdminList('adminEnrollmentList', adminState.enrollments, 'No enrollments yet', 'Student course registrations will appear here.', (item) => `
+      <article class="admin-item">
+        <div class="admin-item-head">
+          <div>
+            <h4>${escapeHtml(item.student_name || 'Student')}</h4>
+            <p>${escapeHtml(item.course_name || 'Course')}</p>
+          </div>
+          <span class="performance-tag">Enrollment</span>
+        </div>
+        <div class="admin-meta">
+          <span>Email: ${escapeHtml(item.student_email || 'N/A')}</span>
+          <span>Teacher: ${escapeHtml(item.teacher_name || 'Unassigned')}</span>
+          <span>Branch: ${escapeHtml(item.dept_name || 'N/A')}</span>
+          <span>University: ${escapeHtml(item.university_name || 'N/A')}</span>
+          <span>Date: ${formatDate(item.enrollment_date)}</span>
+        </div>
+        <div class="admin-actions">
+          <button class="schedule-demo" data-admin-edit="enrollment" data-id="${item.enrollment_id}">Edit</button>
+          <button class="get-started-free university-danger-btn" data-admin-delete="enrollment" data-id="${item.enrollment_id}">Delete</button>
+        </div>
+      </article>
+    `);
+
+    renderAdminList('adminUploadList', adminState.uploads, 'No uploaded files yet', 'Teacher uploads will appear here when files are attached to courses.', (item) => `
+      <article class="admin-item">
+        <div class="admin-item-head">
+          <div>
+            <h4>${escapeHtml(item.course_name || 'Course')}</h4>
+            <p>${escapeHtml(item.teacher_name || 'Teacher not assigned')}</p>
+          </div>
+          <span class="performance-tag">Upload</span>
+        </div>
+        <div class="admin-meta">
+          <span>Branch: ${escapeHtml(item.dept_name || 'N/A')}</span>
+          <span>University: ${escapeHtml(item.university_name || 'N/A')}</span>
+          <span>Path: ${escapeHtml(item.video_path || '')}</span>
+        </div>
+        <div class="admin-actions">
+          <button class="get-started-free university-danger-btn" data-admin-delete="upload" data-id="${item.course_id}">Delete Upload</button>
+        </div>
+      </article>
+    `);
+  }
+
+  function findAdminRecord(type, id) {
+    const numericId = Number(id);
+    if (type === 'university') return (adminState.universities || []).find((item) => Number(item.university_id) === numericId);
+    if (type === 'teacher') return (adminState.teachers || []).find((item) => Number(item.teacher_id) === numericId);
+    if (type === 'student') return (adminState.students || []).find((item) => Number(item.id) === numericId);
+    if (type === 'course') return (adminState.courses || []).find((item) => Number(item.course_id) === numericId);
+    if (type === 'enrollment') return (adminState.enrollments || []).find((item) => Number(item.enrollment_id) === numericId);
+    return null;
+  }
+
+  function buildAdminPayload(type, record) {
+    if (type === 'university') {
+      const universityName = window.prompt('University name', record ? record.university_name : '');
+      if (universityName === null) return null;
+      const email = window.prompt('University email', record ? record.email : '');
+      if (email === null) return null;
+      const principalName = window.prompt('Principal name', record ? record.principal_name : '');
+      if (principalName === null) return null;
+      const password = window.prompt(record ? 'New password (leave blank to keep current password)' : 'Password for this university', '');
+      if (password === null) return null;
+      return {
+        endpoint: '/api/admin/universities/save',
+        body: { universityId: record ? record.university_id : null, universityName, email, principalName, password }
+      };
+    }
+
+    if (type === 'teacher') {
+      const name = window.prompt('Teacher name', record ? record.name : '');
+      if (name === null) return null;
+      const email = window.prompt('Teacher email', record ? record.email : '');
+      if (email === null) return null;
+      const subject = window.prompt('Subject', record ? (record.subject || '') : '');
+      if (subject === null) return null;
+      const branch = window.prompt('Branch / Department', record ? (record.dept_name || '') : '');
+      if (branch === null) return null;
+      const universityName = window.prompt('University name', record ? (record.university_name || '') : '');
+      if (universityName === null) return null;
+      const password = window.prompt(record ? 'New password (leave blank to keep current password)' : 'Password for this teacher', '');
+      if (password === null) return null;
+      return {
+        endpoint: '/api/admin/teachers/save',
+        body: { teacherId: record ? record.teacher_id : null, name, email, subject, branch, universityName, password }
+      };
+    }
+
+    if (type === 'student') {
+      const username = window.prompt('Student name', record ? record.username : '');
+      if (username === null) return null;
+      const email = window.prompt('Student email', record ? record.email : '');
+      if (email === null) return null;
+      const branch = window.prompt('Branch / Department', record ? (record.dept_name || '') : '');
+      if (branch === null) return null;
+      const universityName = window.prompt('University name', record ? (record.university_name || '') : '');
+      if (universityName === null) return null;
+      const password = window.prompt(record ? 'New password (leave blank to keep current password)' : 'Password for this student', '');
+      if (password === null) return null;
+      return {
+        endpoint: '/api/admin/students/save',
+        body: { studentId: record ? record.id : null, username, email, branch, universityName, password }
+      };
+    }
+
+    if (type === 'course') {
+      const courseName = window.prompt('Course name', record ? record.course_name : '');
+      if (courseName === null) return null;
+      const credits = window.prompt('Credits', record ? String(record.credits || 3) : '3');
+      if (credits === null) return null;
+      const branch = window.prompt('Branch / Department', record ? (record.dept_name || '') : '');
+      if (branch === null) return null;
+      const teacherId = window.prompt('Teacher ID (optional)', record && record.teacher_id ? String(record.teacher_id) : '');
+      if (teacherId === null) return null;
+      return {
+        endpoint: '/api/admin/courses/save',
+        body: { courseId: record ? record.course_id : null, courseName, credits, branch, teacherId }
+      };
+    }
+
+    if (type === 'enrollment') {
+      const studentId = window.prompt('Student ID', record ? String(record.auth_user_id) : '');
+      if (studentId === null) return null;
+      const courseId = window.prompt('Course ID', record ? String(record.course_id) : '');
+      if (courseId === null) return null;
+      return {
+        endpoint: '/api/admin/enrollments/save',
+        body: { enrollmentId: record ? record.enrollment_id : null, studentId, courseId }
+      };
+    }
+
+    return null;
+  }
+
+  function getDeleteConfig(type, id) {
+    if (type === 'university') return { endpoint: '/api/admin/universities/delete', body: { universityId: id }, label: 'university' };
+    if (type === 'teacher') return { endpoint: '/api/admin/teachers/delete', body: { teacherId: id }, label: 'teacher' };
+    if (type === 'student') return { endpoint: '/api/admin/students/delete', body: { studentId: id }, label: 'student' };
+    if (type === 'course') return { endpoint: '/api/admin/courses/delete', body: { courseId: id }, label: 'course' };
+    if (type === 'enrollment') return { endpoint: '/api/admin/enrollments/delete', body: { enrollmentId: id }, label: 'enrollment' };
+    if (type === 'upload') return { endpoint: '/api/admin/uploads/delete', body: { courseId: id }, label: 'uploaded file' };
+    return null;
+  }
+
+  async function loadAdminDashboard() {
+    const section = document.getElementById('adminSection');
+
+    try {
+      const res = await fetch('/api/admin/dashboard', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load admin dashboard');
+
+      adminState = {
+        summary: data.summary || {},
+        universities: Array.isArray(data.universities) ? data.universities : [],
+        teachers: Array.isArray(data.teachers) ? data.teachers : [],
+        students: Array.isArray(data.students) ? data.students : [],
+        courses: Array.isArray(data.courses) ? data.courses : [],
+        enrollments: Array.isArray(data.enrollments) ? data.enrollments : [],
+        uploads: Array.isArray(data.uploads) ? data.uploads : []
+      };
+
+      section.style.display = 'block';
+      document.getElementById('adminStatus').textContent = 'Up to date';
+      clearStatusMessage('adminStatusMsg');
+      renderAdminDashboard();
+    } catch (error) {
+      section.style.display = 'block';
+      document.getElementById('adminStatus').textContent = 'Unavailable';
+      setStatusMessage('adminStatusMsg', 'error', error.message || 'Unable to load admin dashboard.');
+    }
+  }
+
+  async function handleAdminAction(event) {
+    const createButton = event.target.closest('[data-admin-create]');
+    const editButton = event.target.closest('[data-admin-edit]');
+    const deleteButton = event.target.closest('[data-admin-delete]');
+    if (!createButton && !editButton && !deleteButton) return;
+
+    try {
+      if (createButton || editButton) {
+        const type = createButton ? createButton.getAttribute('data-admin-create') : editButton.getAttribute('data-admin-edit');
+        const id = editButton ? editButton.getAttribute('data-id') : null;
+        const record = id ? findAdminRecord(type, id) : null;
+        const payload = buildAdminPayload(type, record);
+        if (!payload) return;
+        const data = await postJson(payload.endpoint, payload.body);
+        setStatusMessage('adminStatusMsg', 'success', data.message || 'Saved successfully.');
+        await loadAdminDashboard();
+        return;
+      }
+
+      if (deleteButton) {
+        const type = deleteButton.getAttribute('data-admin-delete');
+        const id = deleteButton.getAttribute('data-id');
+        const config = getDeleteConfig(type, id);
+        if (!config) return;
+        if (!window.confirm(`Delete this ${config.label}?`)) return;
+        const data = await postJson(config.endpoint, config.body);
+        setStatusMessage('adminStatusMsg', 'success', data.message || 'Deleted successfully.');
+        await loadAdminDashboard();
+      }
+    } catch (error) {
+      setStatusMessage('adminStatusMsg', 'error', error.message || 'Admin action failed.');
+    }
+  }
+
   async function handleUniversityAction(event) {
     const button = event.target.closest('[data-action]');
     if (!button) return;
@@ -849,6 +1273,7 @@
   });
   document.getElementById('universityEnrollmentGrid').addEventListener('click', handleUniversityAction);
   document.getElementById('universityUploadGrid').addEventListener('click', handleUniversityAction);
+  document.getElementById('adminSection').addEventListener('click', handleAdminAction);
 
   async function init() {
     try {
@@ -859,7 +1284,7 @@
       }
 
       const user = await res.json();
-      const roleLabel = user.role === 'teacher' ? 'Teacher' : user.role === 'university' ? 'University' : 'Student';
+      const roleLabel = user.role === 'teacher' ? 'Teacher' : user.role === 'university' ? 'University' : user.role === 'admin' ? 'Admin' : 'Student';
       document.getElementById('welcomeTitle').innerHTML =
         `Welcome back, <span class="journey">${escapeHtml(user.username || 'Learner')}</span>`;
       document.getElementById('welcomeUser').textContent = `${roleLabel} • ${user.department || user.email}`;
@@ -874,6 +1299,11 @@
         document.getElementById('studentSection').style.display = 'none';
         document.getElementById('teacherSection').style.display = 'none';
         loadUniversityDashboard();
+      } else if (user.role === 'admin') {
+        document.getElementById('studentSection').style.display = 'none';
+        document.getElementById('teacherSection').style.display = 'none';
+        document.getElementById('universitySection').style.display = 'none';
+        loadAdminDashboard();
       }
     } catch (_error) {
       window.location.href = '/pages/login.html';

@@ -29,7 +29,7 @@
   <section class="hero">
     <div class="transform-banner"><span>Welcome Back</span></div>
     <h1>Log in to <span class="journey">Learnix</span></h1>
-    <p class="subtitle">OTP is disabled. Use your email, password, and role to sign in.</p>
+    <p class="subtitle">Use your email and password to sign in. The platform admin can log in directly without selecting a role.</p>
 
     <form class="demo-form" id="loginForm" action="/login" method="post">
       <input type="email" name="username" id="loginEmail" placeholder="Email Address" required>
@@ -40,7 +40,7 @@
         <label for="showPwd">Show Password</label>
       </div>
 
-      <select name="role" id="loginRole" required>
+      <select name="role" id="loginRole">
         <option value="" disabled selected>Select Role</option>
         <option value="student">Student</option>
         <option value="teacher">Teacher</option>
@@ -82,6 +82,19 @@
     loginBranch.required = needsBranch;
     if (!needsBranch) loginBranch.value = '';
   }
+
+  document.getElementById('loginForm').addEventListener('submit', (event) => {
+    const email = (document.getElementById('loginEmail').value || '').trim().toLowerCase();
+    const password = document.getElementById('loginPassword').value || '';
+    const isAdminLogin = email === 'admin@gmail.com' && password === 'Admin@123';
+    if (!isAdminLogin && !loginRole.value) {
+      event.preventDefault();
+      loginError.textContent = 'Please select a role before logging in.';
+      loginError.style.display = 'block';
+      return;
+    }
+    loginError.style.display = 'none';
+  });
 
   loginRole.addEventListener('change', syncBranchVisibility);
   syncBranchVisibility();
