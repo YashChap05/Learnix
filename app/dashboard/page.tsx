@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
+  const [navUser, setNavUser] = useState<{ email?: string; role?: string } | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   useEffect(() => {
     // All the dashboard JavaScript logic runs after the component mounts.
     // This approach preserves all original functionality while using Next.js page routing.
@@ -535,7 +538,7 @@ export default function DashboardPage() {
         ['Students', s.total_students ?? 0],
         ['Courses', s.total_courses ?? 0],
         ['Enrollments', s.total_enrollments ?? 0],
-        ['Uploaded Videos', s.uploaded_videos ?? 0],
+        ['Uploaded Videos', s.total_uploads ?? 0],
       ].map(([label, value]) => `
         <div class="admin-summary-card">
           <span>${label}</span>
@@ -562,7 +565,7 @@ export default function DashboardPage() {
         </article>`);
       renderAdminList('adminTeacherList', adminState.teachers, t => `
         <article class="admin-item">
-          <div class="admin-item-head"><div><h4>${escapeHtml(t.teacher_name || 'Teacher')}</h4><p>${escapeHtml(t.teacher_email || '')}</p></div></div>
+          <div class="admin-item-head"><div><h4>${escapeHtml(t.name || 'Teacher')}</h4><p>${escapeHtml(t.email || '')}</p></div></div>
           <div class="admin-meta"><span>Dept: ${escapeHtml(t.dept_name || 'N/A')}</span><span>University: ${escapeHtml(t.university_name || 'N/A')}</span></div>
           <div class="admin-actions">
             <button class="get-started-free admin-action-btn" data-action="delete-teacher" data-id="${t.teacher_id}">Delete</button>
@@ -670,6 +673,7 @@ export default function DashboardPage() {
       .then(r => { if (!r.ok) { window.location.href = '/login'; return null; } return r.json(); })
       .then(user => {
         if (!user) return;
+        setNavUser(user);
         const titleEl = document.getElementById('welcomeTitle');
         const userEl = document.getElementById('welcomeUser');
         if (titleEl) titleEl.innerHTML = `${escapeHtml(user.username || 'Welcome')}&apos;s <span class="journey">Dashboard</span>`;
@@ -688,6 +692,10 @@ export default function DashboardPage() {
         }
       })
       .catch(() => { window.location.href = '/login'; });
+
+    const handleClick = () => setDropdownOpen(false);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
   }, []);
 
   return (
@@ -705,8 +713,28 @@ export default function DashboardPage() {
           </ul>
         </nav>
         <div className="nav-actions">
-          <Link href="/profile" className="sign-in">My Profile</Link>
-          <a href="/logout" className="schedule-demo">Sign Out</a>
+          {navUser ? (
+            <div className="profile-menu">
+              <button
+                className="profile-trigger"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setDropdownOpen((open) => !open); }}
+              >
+                {navUser.email || 'My Account'}
+              </button>
+              <div className={`profile-dropdown${dropdownOpen ? ' open' : ''}`}>
+                <div className="profile-email">{navUser.email || ''}</div>
+                <Link href="/dashboard" className="profile-item">Dashboard</Link>
+                <Link href="/profile" className="profile-item">My Profile</Link>
+                <a href="/logout" className="profile-item" style={{ color: '#dc2626' }}>Sign Out</a>
+              </div>
+            </div>
+          ) : (
+            <>
+              <Link href="/login" className="sign-in">Log In</Link>
+              <Link href="/signup" className="sign-up">Sign Up</Link>
+            </>
+          )}
         </div>
       </header>
 
