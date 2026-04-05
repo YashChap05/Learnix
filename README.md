@@ -1,6 +1,6 @@
 # 📖 Learnix v2.0
 
-A modern remote learning platform — upgraded from scratch with proper file structure, secure authentication, role-based dashboards, and dark mode.
+A modern remote learning platform — built with Next.js (App Router) + TypeScript on the frontend and Express.js on the backend, with secure authentication, role-based dashboards, and dark mode.
 
 ---
 
@@ -8,8 +8,25 @@ A modern remote learning platform — upgraded from scratch with proper file str
 
 ```
 learnix/
+├── app/                        # Next.js App Router pages (TypeScript)
+│   ├── layout.tsx              # Root layout (global CSS + scripts)
+│   ├── page.tsx                # Root redirect
+│   ├── login/page.tsx
+│   ├── signup/page.tsx
+│   ├── home/page.tsx
+│   ├── courses/page.tsx
+│   ├── dashboard/page.tsx
+│   ├── profile/page.tsx
+│   ├── about/page.tsx
+│   ├── demo/page.tsx
+│   ├── subject-detail/page.tsx
+│   ├── subject-learning/page.tsx
+│   ├── webdev-video/page.tsx
+│   ├── python-video/page.tsx
+│   ├── ds-video/page.tsx
+│   └── uiux-video/page.tsx
 ├── src/
-│   ├── server.js              # Main Express server
+│   ├── server.js              # Express + Next.js custom server
 │   ├── config/
 │   │   └── database.js        # MySQL connection (uses .env)
 │   └── routes/
@@ -18,24 +35,14 @@ learnix/
 │   ├── assets/
 │   │   ├── css/main.css       # Global stylesheet (dark mode included)
 │   │   ├── js/main.js         # Dark mode toggle
-│   │   └── media/videos/      # MP4 course videos
-│   └── pages/
-│       ├── login.html
-│       ├── signup.html
-│       ├── home.html
-│       ├── courses.html
-│       ├── dashboard.html
-│       ├── profile.html
-│       ├── about.html
-│       ├── demo.html
-│       ├── webdev-video.html
-│       ├── python-video.html
-│       ├── ds-video.html
-│       └── uiux-video.html
+│   │   └── media/             # Static media files
+│   └── uploads/               # Teacher-uploaded course videos (runtime)
 ├── sql/
 │   └── schema.sql             # Full DB schema
 ├── scripts/
 │   └── db-check.js            # Quick DB connection test
+├── next.config.js
+├── tsconfig.json
 ├── .env.example               # Environment variable template
 ├── .gitignore
 └── package.json
@@ -81,10 +88,20 @@ This creates the `learnix` database with all tables and seeds the 4 default cour
 npm run db:check
 ```
 
-### 5. Start the server
+### 5. Build the Next.js app (production)
 
 ```bash
+npm run build
+```
+
+### 6. Start the server
+
+```bash
+# Production
 npm start
+
+# Development (with hot reload via Next.js dev mode)
+npm run dev
 ```
 
 Visit: **http://localhost:3000**
@@ -105,6 +122,22 @@ Visit: **http://localhost:3000**
 | **AI Tools** | Video summary + quiz generation (OpenAI optional) |
 | **Department Loader** | Departments loaded from DB into signup/login dropdowns |
 | **File Uploads** | Teachers can upload videos via `/api/teacher/upload-video` |
+| **Next.js App Router** | All pages are TypeScript React components under `app/` |
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | Next.js 15 (App Router), TypeScript, React 19 |
+| **Backend** | Express.js (custom Next.js server) |
+| **Database** | MySQL (via mysql2) |
+| **Auth** | express-session + bcrypt |
+| **Styling** | Custom CSS with dark mode |
+| **File Uploads** | Multer |
+| **Email** | Nodemailer (SMTP) |
+| **AI** | OpenAI API (optional) |
 
 ---
 
