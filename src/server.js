@@ -4,13 +4,21 @@ const session = require("express-session");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const next = require("next");
 const authRoutes = require("./routes/auth");
 const db = require("./config/database");
 
-const app = express();
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 const UPLOADS_DIR = path.join(PUBLIC_DIR, "uploads");
+
+const dev = process.env.NODE_ENV !== "production";
+const nextApp = next({ dev, dir: path.join(__dirname, "..") });
+const handle = nextApp.getRequestHandler();
+
+nextApp.prepare().then(() => {
+
+const app = express();
 
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -47,17 +55,31 @@ app.use(session({
 
 app.use(authRoutes);
 
-// ─── Root & redirects ─────────────────────────
-app.get("/", (_req, res) => res.redirect("/pages/login.html"));
+// ─── Redirects from old HTML paths to new Next.js routes ──────────────────
+app.get("/pages/login.html", (_req, res) => res.redirect("/login"));
+app.get("/pages/signup.html", (_req, res) => res.redirect("/signup"));
+app.get("/pages/home.html", (_req, res) => res.redirect("/home"));
+app.get("/pages/courses.html", (_req, res) => res.redirect("/courses"));
+app.get("/pages/about.html", (_req, res) => res.redirect("/about"));
+app.get("/pages/demo.html", (_req, res) => res.redirect("/demo"));
+app.get("/pages/dashboard.html", (_req, res) => res.redirect("/dashboard"));
+app.get("/pages/profile.html", (_req, res) => res.redirect("/profile"));
+app.get("/pages/webdev-video.html", (_req, res) => res.redirect("/webdev-video"));
+app.get("/pages/python-video.html", (_req, res) => res.redirect("/python-video"));
+app.get("/pages/ds-video.html", (_req, res) => res.redirect("/ds-video"));
+app.get("/pages/uiux-video.html", (_req, res) => res.redirect("/uiux-video"));
+app.get("/pages/subject-detail.html", (req, res) => res.redirect(`/subject-detail${req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : ""}`));
+app.get("/pages/subject-learning.html", (req, res) => res.redirect(`/subject-learning${req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : ""}`));
+// Legacy root redirects
 app.get("/dashboard.html", (_req, res) => res.redirect("/dashboard"));
 app.get("/profile.html", (_req, res) => res.redirect("/profile"));
-app.get("/login.html", (_req, res) => res.redirect("/pages/login.html"));
-app.get("/signup.html", (_req, res) => res.redirect("/pages/signup.html"));
-app.get("/Courses.html", (_req, res) => res.redirect("/pages/courses.html"));
-app.get("/Sample_vid.html", (_req, res) => res.redirect("/pages/webdev-video.html"));
-app.get("/Python_vid.html", (_req, res) => res.redirect("/pages/python-video.html"));
-app.get("/DS_vid.html", (_req, res) => res.redirect("/pages/ds-video.html"));
-app.get("/UIUX_vid.html", (_req, res) => res.redirect("/pages/uiux-video.html"));
+app.get("/login.html", (_req, res) => res.redirect("/login"));
+app.get("/signup.html", (_req, res) => res.redirect("/signup"));
+app.get("/Courses.html", (_req, res) => res.redirect("/courses"));
+app.get("/Sample_vid.html", (_req, res) => res.redirect("/webdev-video"));
+app.get("/Python_vid.html", (_req, res) => res.redirect("/python-video"));
+app.get("/DS_vid.html", (_req, res) => res.redirect("/ds-video"));
+app.get("/UIUX_vid.html", (_req, res) => res.redirect("/uiux-video"));
 
 app.use("/uploads", (req, res, next) => {
   if (!req.session.userId || !req.session.user) {
@@ -214,7 +236,15 @@ app.post("/api/generate", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 Learnix running at http://localhost:${PORT}`);
-  console.log(`   Visit: http://localhost:${PORT}/pages/login.html\n`);
+// ─── Next.js handles all remaining routes (pages, static files) ──────────
+app.all("*", (req, res) => handle(req, res));
+
+  app.listen(PORT, () => {
+    console.log(`\n🚀 Learnix running at http://localhost:${PORT}`);
+    console.log(`   Visit: http://localhost:${PORT}/login\n`);
+  });
+
+}).catch((err) => {
+  console.error("Failed to start Next.js:", err);
+  process.exit(1);
 });
