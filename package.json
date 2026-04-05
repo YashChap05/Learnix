@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
+    "build": "next build",
     "db:check": "node scripts/db-check.js"
   },
   "keywords": [],
@@ -19,6 +20,15 @@
     "express-session": "^1.19.0",
     "multer": "^2.1.1",
     "mysql2": "^3.17.1",
-    "nodemailer": "^8.0.1"
+    "next": "15.5.14",
+    "nodemailer": "^8.0.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.50",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.8.3"
   }
 }
