@@ -118,8 +118,8 @@ export default function LoginPage() {
             </select>
 
             {showBranch && (
-              <select name="branch" id="loginBranch" required>
-                <option value="" disabled selected>Select Branch</option>
+              <select name="branch" id="loginBranch" defaultValue="" required>
+                <option value="" disabled>Select Branch</option>
                 {departments.map((d) => (
                   <option key={d.dept_id} value={d.dept_name}>{d.dept_name}</option>
                 ))}

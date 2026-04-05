@@ -48,8 +48,8 @@ export default function DemoPage() {
             <input type="text" id="demoName" placeholder="Your Full Name" required />
             <input type="email" id="demoEmail" placeholder="Email Address" required />
             <input type="tel" id="demoPhone" placeholder="Phone Number (10 digits)" pattern="[0-9]{10}" maxLength={10} required />
-            <select id="demoCourse" required>
-              <option value="" disabled selected>Interested Course</option>
+            <select id="demoCourse" defaultValue="" required>
+              <option value="" disabled>Interested Course</option>
               <option>Web Development</option>
               <option>Python Programming</option>
               <option>Data Science</option>

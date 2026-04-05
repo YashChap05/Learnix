@@ -237,7 +237,7 @@ app.post("/api/generate", async (req, res) => {
 });
 
 // ─── Next.js handles all remaining routes (pages, static files) ──────────
-app.all("*", (req, res) => handle(req, res));
+app.all(/.*/, (req, res) => handle(req, res));
 
   app.listen(PORT, () => {
     console.log(`\n🚀 Learnix running at http://localhost:${PORT}`);

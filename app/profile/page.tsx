@@ -30,6 +30,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [courses, setCourses] = useState<EnrolledCourse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -54,6 +55,10 @@ export default function ProfilePage() {
       }
     };
     init();
+
+    const handleClick = () => setDropdownOpen(false);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
   }, []);
 
   const initials = user
@@ -77,7 +82,24 @@ export default function ProfilePage() {
           </ul>
         </nav>
         <div className="nav-actions">
-          <a href="/logout" className="schedule-demo">Sign Out</a>
+          {user ? (
+            <div className="profile-menu">
+              <button className="profile-trigger" type="button" onClick={(e) => { e.stopPropagation(); setDropdownOpen((open) => !open); }}>
+                {user.email || 'My Account'}
+              </button>
+              <div className={`profile-dropdown${dropdownOpen ? ' open' : ''}`}>
+                <div className="profile-email">{user.email || ''}</div>
+                <Link href="/dashboard" className="profile-item">Dashboard</Link>
+                <Link href="/profile" className="profile-item">My Profile</Link>
+                <a href="/logout" className="profile-item" style={{ color: '#dc2626' }}>Sign Out</a>
+              </div>
+            </div>
+          ) : (
+            <>
+              <Link href="/login" className="sign-in">Log In</Link>
+              <Link href="/signup" className="sign-up">Sign Up</Link>
+            </>
+          )}
         </div>
       </header>
 

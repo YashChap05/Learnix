@@ -101,7 +101,6 @@ export default function HomePage() {
               <div className={`profile-dropdown${dropdownOpen ? ' open' : ''}`}>
                 <div className="profile-email">{user.email || ''}</div>
                 <Link href="/dashboard" className="profile-item">Dashboard</Link>
-                <button className="profile-item" type="button" onClick={openMyCoursesPanel}>My Courses</button>
                 <Link href="/profile" className="profile-item">My Profile</Link>
                 <a href="/logout" className="profile-item" style={{ color: '#dc2626' }}>Sign Out</a>
               </div>

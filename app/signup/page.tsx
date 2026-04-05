@@ -87,7 +87,11 @@ export default function SignupPage() {
                 key={r}
                 type="button"
                 className={`signup-tab${role === r ? ' active' : ''}`}
-                onClick={() => setRole(r)}
+                aria-pressed={role === r}
+                onClick={() => {
+                  setRole(r);
+                  setError('');
+                }}
               >
                 {r.charAt(0).toUpperCase() + r.slice(1)}
               </button>
@@ -101,8 +105,8 @@ export default function SignupPage() {
               <div className="signup-panel active" data-panel="student">
                 <input type="text" name="username" placeholder="Student Name" required />
                 <input type="email" name="email" placeholder="Email Address" required />
-                <select name="branch" required>
-                  <option value="" disabled selected>Select Branch</option>
+                <select name="branch" defaultValue="" required>
+                  <option value="" disabled>Select Branch</option>
                   {departments.map((d) => (
                     <option key={d.dept_id} value={d.dept_name}>{d.dept_name}</option>
                   ))}
@@ -115,8 +119,8 @@ export default function SignupPage() {
               <div className="signup-panel active" data-panel="teacher">
                 <input type="text" name="username" placeholder="Teacher Name" required />
                 <input type="email" name="email" placeholder="Email Address" required />
-                <select name="branch" required>
-                  <option value="" disabled selected>Select Branch</option>
+                <select name="branch" defaultValue="" required>
+                  <option value="" disabled>Select Branch</option>
                   {departments.map((d) => (
                     <option key={d.dept_id} value={d.dept_name}>{d.dept_name}</option>
                   ))}

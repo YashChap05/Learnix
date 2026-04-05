@@ -24,8 +24,6 @@
       localStorage.setItem(KEY, next);
       applyTheme(next);
     });
-    const actions = document.querySelector(".nav-actions");
-    if (actions) { actions.prepend(btn); return; }
     btn.classList.add("theme-toggle-floating");
     document.body.appendChild(btn);
   }
