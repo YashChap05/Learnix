@@ -12,9 +12,11 @@ const UNIVERSITY_TABLE = "university";
 const DEPT_TABLE = "dept";
 const COURSE_TABLE = "courses";
 const ENROLL_TABLE = "enrollment";
+const ENROLL_REQUEST_TABLE = "enrollment_requests";
 const PERFORMANCE_TABLE = "student_performance";
 const ADMIN_EMAIL = "admin@gmail.com";
 const ADMIN_PASSWORD = "Admin@123";
+const ACADEMIC_YEARS = ["First Year", "Second Year", "Third Year", "Final Year", "Class 12"];
 
 const COURSE_VIDEO_MAP = {
   "web development": "/pages/webdev-video.html",
@@ -53,10 +55,34 @@ const normalizeText = (value) => String(value || "").trim();
 const normalizeEmail = (value) => normalizeText(value).toLowerCase();
 const normalizeRole = (value) => normalizeText(value).toLowerCase();
 const normalizeCourseName = (value) => normalizeText(value).toLowerCase().replace(/\s+/g, " ");
+const normalizeAcademicYear = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  return ACADEMIC_YEARS.find((year) => year.toLowerCase() === normalized) || null;
+};
 
 const resolveCourseVideoPath = (courseName, uploadedPath) => {
   if (uploadedPath) return uploadedPath;
   return COURSE_VIDEO_MAP[normalizeCourseName(courseName)] || "/pages/courses.html";
+};
+
+const findOrCreateCourseByName = (courseName, deptId, callback) => {
+  db.query(
+    `SELECT course_id, course_name FROM ${COURSE_TABLE} WHERE course_name = ? LIMIT 1`,
+    [courseName],
+    (err, rows) => {
+      if (err) return callback(err);
+      if (rows && rows.length > 0) return callback(null, rows[0]);
+
+      db.query(
+        `INSERT INTO ${COURSE_TABLE} (course_name, credits, dept_id) VALUES (?, 3, ?)`,
+        [courseName, deptId],
+        (insertErr, result) => {
+          if (insertErr) return callback(insertErr);
+          return callback(null, { course_id: result.insertId, course_name: courseName });
+        }
+      );
+    }
+  );
 };
 
 const resolveDeptId = ({ branch, createIfMissing }, callback) => {
@@ -474,9 +500,8 @@ router.post("/api/enroll", (req, res) => {
   const userId = Number(req.session.userId);
   const deptId = Number(req.session.user.dept_id) || null;
 
-  db.query(`SELECT course_id, course_name FROM ${COURSE_TABLE} WHERE course_name = ? LIMIT 1`, [courseName], (err, courseRows) => {
+  findOrCreateCourseByName(courseName, deptId, (err, course) => {
     if (err) return res.status(500).json({ error: "Failed to fetch course" });
-
     const enrollStudent = (courseId, actualCourseName) => {
       db.query(
         `SELECT 1 FROM ${ENROLL_TABLE} WHERE auth_user_id = ? AND course_id = ? LIMIT 1`,
@@ -505,17 +530,65 @@ router.post("/api/enroll", (req, res) => {
         }
       );
     };
+    return enrollStudent(course.course_id, course.course_name);
+  });
+});
 
-    if (courseRows && courseRows.length > 0) {
-      return enrollStudent(courseRows[0].course_id, courseRows[0].course_name);
+router.get("/api/my-course-access-requests", (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: "Please log in first" });
+  if (!req.session.user || req.session.user.role !== "student") return res.json({ requests: [] });
+
+  db.query(
+    `SELECT r.request_id, r.request_date, c.course_name
+     FROM ${ENROLL_REQUEST_TABLE} r
+     JOIN ${COURSE_TABLE} c ON c.course_id = r.course_id
+     WHERE r.student_email = ?
+     ORDER BY r.request_date DESC, r.request_id DESC`,
+    [req.session.user.email],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Failed to load permission requests" });
+      return res.json({ requests: rows || [] });
     }
+  );
+});
+
+router.post("/api/course-access-request", (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: "Please log in first" });
+  if (!req.session.user || req.session.user.role !== "student") {
+    return res.status(403).json({ error: "Only students can request course access" });
+  }
+
+  const courseName = normalizeText(req.body && req.body.courseName);
+  if (!courseName) return res.status(400).json({ error: "courseName is required" });
+
+  const deptId = Number(req.session.user.dept_id) || null;
+  const user = req.session.user;
+
+  findOrCreateCourseByName(courseName, deptId, (courseErr, course) => {
+    if (courseErr) return res.status(500).json({ error: "Failed to prepare course request" });
 
     db.query(
-      `INSERT INTO ${COURSE_TABLE} (course_name, credits, dept_id) VALUES (?, 3, ?)`,
-      [courseName, deptId],
-      (insertErr, result) => {
-        if (insertErr) return res.status(500).json({ error: "Failed to create course" });
-        return enrollStudent(result.insertId, courseName);
+      `SELECT request_id
+       FROM ${ENROLL_REQUEST_TABLE}
+       WHERE student_email = ? AND course_id = ?
+       LIMIT 1`,
+      [user.email, course.course_id],
+      (checkErr, existingRows) => {
+        if (checkErr) return res.status(500).json({ error: "Failed to check existing request" });
+        if (existingRows && existingRows.length > 0) {
+          return res.json({ message: "Permission request already sent to your university.", alreadyRequested: true });
+        }
+
+        db.query(
+          `INSERT INTO ${ENROLL_REQUEST_TABLE}
+           (student_name, student_email, department, university_name, course_id, request_date)
+           VALUES (?, ?, ?, ?, ?, CURDATE())`,
+          [user.username || "Student", user.email || "", user.department || null, user.university_name || null, course.course_id],
+          (insertErr) => {
+            if (insertErr) return res.status(500).json({ error: "Failed to send permission request" });
+            return res.json({ message: "Permission request sent to your university.", alreadyRequested: false });
+          }
+        );
       }
     );
   });
@@ -704,7 +777,7 @@ router.get("/api/university/dashboard", (req, res) => {
                 if (teacherErr) return res.status(500).json({ error: "Failed to load teacher performance" });
                 db.query(
                   `SELECT d.dept_id, d.dept_name,
-                          s.id AS student_id, s.username AS student_name, s.email AS student_email,
+                          s.id AS student_id, s.username AS student_name, s.email AS student_email, s.academic_year,
                           t.teacher_id, t.name AS teacher_name, t.email AS teacher_email, t.subject
                    FROM ${DEPT_TABLE} d
                    LEFT JOIN ${AUTH_TABLE} s
@@ -735,7 +808,8 @@ router.get("/api/university/dashboard", (req, res) => {
                         branch.students.push({
                           student_id: row.student_id,
                           student_name: row.student_name,
-                          student_email: row.student_email
+                          student_email: row.student_email,
+                          academic_year: row.academic_year || null
                         });
                       }
                       if (row.teacher_id && !branch.teachers.some((teacher) => teacher.teacher_id === row.teacher_id)) {
@@ -1086,6 +1160,29 @@ router.post("/api/admin/students/delete", (req, res) => {
     if (err) return res.status(500).json({ error: "Failed to delete student" });
     return res.json({ message: "Student deleted successfully" });
   });
+});
+
+router.post("/api/university/students/assign-year", (req, res) => {
+  if (!requireUniversity(req, res)) return;
+
+  const studentId = Number(req.body && req.body.studentId);
+  const academicYear = normalizeAcademicYear(req.body && req.body.academicYear);
+  const universityId = Number(req.session.userId);
+
+  if (!studentId) return res.status(400).json({ error: "studentId is required" });
+  if (!academicYear) return res.status(400).json({ error: "A valid academic year is required" });
+
+  db.query(
+    `UPDATE ${AUTH_TABLE}
+     SET academic_year = ?
+     WHERE id = ? AND role = 'student' AND university_id = ?`,
+    [academicYear, studentId, universityId],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: "Failed to assign student year" });
+      if (!result || result.affectedRows === 0) return res.status(404).json({ error: "Student not found" });
+      return res.json({ message: `Student year updated to ${academicYear}.`, academicYear });
+    }
+  );
 });
 
 router.post("/api/admin/courses/save", (req, res) => {

@@ -42,10 +42,12 @@
         <div class="subject-stat-list" id="subjectStats"></div>
         <div class="subject-actions">
           <button class="get-started-free" id="enrollBtn" type="button">Enroll Now</button>
+          <button class="schedule-demo" id="requestPermissionBtn" type="button" style="display:none;">Take University Permission</button>
           <a href="#" class="schedule-demo" id="openLessonsBtn" style="display:none;">Open Video Lessons</a>
           <a href="/pages/courses.html" class="schedule-demo">Browse More Subjects</a>
         </div>
         <div id="enrollMsg" class="status-msg" style="display:none;"></div>
+        <div id="permissionMsg" class="status-msg" style="display:none;margin-top:12px;"></div>
       </div>
     </div>
 
@@ -549,7 +551,9 @@
   const subject = SUBJECTS[subjectKey];
   const enrollBtn = document.getElementById("enrollBtn");
   const enrollMsg = document.getElementById("enrollMsg");
+  const requestPermissionBtn = document.getElementById("requestPermissionBtn");
   const openLessonsBtn = document.getElementById("openLessonsBtn");
+  const permissionMsg = document.getElementById("permissionMsg");
 
   function addEnrolledFlag(url) {
     return url + (url.includes("?") ? "&" : "?") + "enrolled=1";
@@ -562,6 +566,32 @@
   function showLessonsButton(useEnrolledFlag) {
     openLessonsBtn.href = useEnrolledFlag ? addEnrolledFlag(lessonPageUrl()) : lessonPageUrl();
     openLessonsBtn.style.display = "inline-block";
+  }
+
+  function showPermissionButton(message, alreadyRequested) {
+    requestPermissionBtn.style.display = "inline-block";
+    requestPermissionBtn.disabled = !!alreadyRequested;
+    requestPermissionBtn.textContent = alreadyRequested ? "Permission Requested" : "Take University Permission";
+    permissionMsg.className = "status-msg error";
+    permissionMsg.textContent = message;
+    permissionMsg.style.display = "block";
+  }
+
+  async function parseApiPayload(res) {
+    const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+    if (contentType.includes("application/json")) {
+      return res.json();
+    }
+
+    const rawText = await res.text();
+    try {
+      return JSON.parse(rawText);
+    } catch (_err) {
+      if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
+        return { error: "Server returned an HTML page instead of API JSON. Please restart backend with npm run dev and try again." };
+      }
+      return { error: rawText || "Unexpected server response" };
+    }
   }
 
   function renderSubject() {
@@ -654,7 +684,7 @@
         credentials: "same-origin",
         body: JSON.stringify({ courseName: subject.name })
       });
-      const data = await res.json();
+      const data = await parseApiPayload(res);
       if (!res.ok) throw new Error(data.error || "Enrollment failed");
 
       enrollBtn.textContent = "Enrolled";
@@ -671,10 +701,40 @@
       enrollMsg.textContent = error.message;
       enrollMsg.className = "status-msg error";
       enrollMsg.style.display = "block";
+      if (String(error.message || "").toLowerCase().includes("permission")) {
+        showPermissionButton(error.message, false);
+      }
+    }
+  }
+
+  async function handlePermissionRequest() {
+    if (!subject) return;
+    requestPermissionBtn.disabled = true;
+    requestPermissionBtn.textContent = "Sending...";
+    try {
+      const res = await fetch("/api/course-access-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ courseName: subject.name })
+      });
+      const data = await parseApiPayload(res);
+      if (!res.ok) throw new Error(data.error || "Failed to send permission request");
+      permissionMsg.className = "status-msg success";
+      permissionMsg.textContent = data.message || "Permission request sent.";
+      permissionMsg.style.display = "block";
+      requestPermissionBtn.textContent = "Permission Requested";
+    } catch (error) {
+      requestPermissionBtn.disabled = false;
+      requestPermissionBtn.textContent = "Take University Permission";
+      permissionMsg.className = "status-msg error";
+      permissionMsg.textContent = error.message;
+      permissionMsg.style.display = "block";
     }
   }
 
   enrollBtn.addEventListener("click", handleEnroll);
+  requestPermissionBtn.addEventListener("click", handlePermissionRequest);
   renderSubject();
   wireAuth();
 </script>
