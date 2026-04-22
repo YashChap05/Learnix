@@ -58,6 +58,23 @@ function SubjectDetailContent() {
 
   const lessonsUrl = `/subject-learning?subject=${subjectKey}`;
 
+  const parseApiPayload = async (res: Response) => {
+    const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+    if (contentType.includes('application/json')) {
+      return res.json();
+    }
+
+    const rawText = await res.text();
+    try {
+      return JSON.parse(rawText);
+    } catch {
+      if (rawText.trim().startsWith('<!DOCTYPE') || rawText.trim().startsWith('<html')) {
+        return { error: 'Server returned an HTML page instead of API JSON. Please restart backend with npm run dev and try again.' };
+      }
+      return { error: rawText || 'Unexpected server response' };
+    }
+  };
+
   useEffect(() => {
     fetch('/api/me', { credentials: 'same-origin' })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
@@ -91,7 +108,7 @@ function SubjectDetailContent() {
     setEnrollStatus('loading');
     try {
       const res = await fetch('/api/enroll', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ courseName: subject.name }) });
-      const data = await res.json();
+      const data = await parseApiPayload(res);
       if (!res.ok) throw new Error(data.error || 'Enrollment failed');
       setEnrollStatus('enrolled');
       setEnrollMsg(data.alreadyEnrolled ? 'You are already enrolled in this subject.' : 'Enrollment successful. Your subject is ready to open.');

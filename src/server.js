@@ -11,6 +11,7 @@ const db = require("./config/database");
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 const UPLOADS_DIR = path.join(PUBLIC_DIR, "uploads");
+const AUTH_TABLE = "auth_users";
 
 const dev = process.env.NODE_ENV !== "production";
 const nextApp = next({ dev, dir: path.join(__dirname, "..") });
@@ -22,6 +23,16 @@ const app = express();
 
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+function ensureStudentYearColumn() {
+  db.query(
+    `ALTER TABLE ${AUTH_TABLE} ADD COLUMN academic_year VARCHAR(30) NULL AFTER university_id`,
+    (err) => {
+      if (!err || err.code === "ER_DUP_FIELDNAME") return;
+      console.error("Failed to ensure auth_users.academic_year column:", err.message);
+    }
+  );
 }
 
 
@@ -240,6 +251,7 @@ app.post("/api/generate", async (req, res) => {
 app.all("*", (req, res) => handle(req, res));
 
   app.listen(PORT, () => {
+    ensureStudentYearColumn();
     console.log(`\n🚀 Learnix running at http://localhost:${PORT}`);
     console.log(`   Visit: http://localhost:${PORT}/login\n`);
   });
