@@ -100,7 +100,7 @@
       name: "DBMS",
       year: "First Year",
       chapterVideos: [
-        "/assets/media/dbms/ch1.mp4",
+        "/assets/media/dbms/DBMS1.mp4",
         "/assets/media/dbms/ch2.mp4",
         "/assets/media/dbms/ch3.mp4",
         "/assets/media/dbms/ch4.mp4",
@@ -128,7 +128,7 @@
       name: "Operating Systems",
       year: "First Year",
       chapterVideos: [
-        "/assets/media/operating-systems/ch1.mp4",
+        "/assets/media/operating-systems/os1.mp4",
         "/assets/media/operating-systems/ch2.mp4",
         "/assets/media/operating-systems/ch3.mp4",
         "/assets/media/operating-systems/ch4.mp4",
@@ -156,7 +156,7 @@
       name: "CT",
       year: "First Year",
       chapterVideos: [
-        "/assets/media/ct/ch1.mp4",
+        "/assets/media/ct/CT1.mp4",
         "/assets/media/ct/ch2.mp4",
         "/assets/media/ct/ch3.mp4",
         "/assets/media/ct/ch4.mp4",
@@ -184,7 +184,7 @@
       name: "Telecommunication",
       year: "First Year",
       chapterVideos: [
-        "/assets/media/telecommunication/ch1.mp4",
+        "/assets/media/telecommunication/tele1.mp4",
         "/assets/media/telecommunication/ch2.mp4",
         "/assets/media/telecommunication/ch3.mp4",
         "/assets/media/telecommunication/ch4.mp4",
@@ -866,7 +866,7 @@
 
       const summaryHtml = data.summary_html || ('<p>' + (data.summary || 'No summary available.') + '</p>');
       summaryText.innerHTML = data.warning
-        ? summaryHtml + `<p style="margin-top:12px;color:#f59e0b;font-size:0.92rem;">${data.warning}</p>`
+        ? summaryHtml + `<p style="margin-top:12px;color:#f59e0b;font-size:0.92rem;">AI live summary is unavailable right now, so Learnix is showing a built-in chapter summary.</p>`
         : summaryHtml;
 
       quizQuestions = Array.isArray(data.questions) ? data.questions.filter(q => q && q.question && q.answer) : [];
@@ -877,8 +877,12 @@
 
       btn.textContent = "Refresh AI Summary";
     } catch (error) {
-      summaryText.innerHTML = `<p style="color:#dc2626;">${error.message}</p>`;
-      quizList.innerHTML = `<div class="quiz-empty">Unable to load quiz questions right now.</div>`;
+      summaryText.innerHTML = `
+        <p><strong>${displayTitle}</strong> covers the core ideas you need to revise for this lesson.</p>
+        <p>Focus on the main definitions, understand the sequence of concepts shown in the video, and make short notes for quick revision later.</p>
+        <p style="margin-top:12px;color:#f59e0b;font-size:0.92rem;">AI summary could not be loaded, so a local study summary is being shown.</p>
+      `;
+      quizList.innerHTML = `<div class="quiz-empty">Quiz generation is unavailable right now. Please review the lesson and try again later.</div>`;
       btn.textContent = "Try Again";
     } finally {
       btn.disabled = false;

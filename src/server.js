@@ -4,22 +4,14 @@ const session = require("express-session");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const next = require("next");
 const authRoutes = require("./routes/auth");
 const db = require("./config/database");
 
-const PORT = process.env.PORT || 3000;
+const app = express();
+const PORT = Number(process.env.PORT) || 3456;
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 const UPLOADS_DIR = path.join(PUBLIC_DIR, "uploads");
 const AUTH_TABLE = "auth_users";
-
-const dev = process.env.NODE_ENV !== "production";
-const nextApp = next({ dev, dir: path.join(__dirname, "..") });
-const handle = nextApp.getRequestHandler();
-
-nextApp.prepare().then(() => {
-
-const app = express();
 
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -66,31 +58,17 @@ app.use(session({
 
 app.use(authRoutes);
 
-// ─── Redirects from old HTML paths to new Next.js routes ──────────────────
-app.get("/pages/login.html", (_req, res) => res.redirect("/login"));
-app.get("/pages/signup.html", (_req, res) => res.redirect("/signup"));
-app.get("/pages/home.html", (_req, res) => res.redirect("/home"));
-app.get("/pages/courses.html", (_req, res) => res.redirect("/courses"));
-app.get("/pages/about.html", (_req, res) => res.redirect("/about"));
-app.get("/pages/demo.html", (_req, res) => res.redirect("/demo"));
-app.get("/pages/dashboard.html", (_req, res) => res.redirect("/dashboard"));
-app.get("/pages/profile.html", (_req, res) => res.redirect("/profile"));
-app.get("/pages/webdev-video.html", (_req, res) => res.redirect("/webdev-video"));
-app.get("/pages/python-video.html", (_req, res) => res.redirect("/python-video"));
-app.get("/pages/ds-video.html", (_req, res) => res.redirect("/ds-video"));
-app.get("/pages/uiux-video.html", (_req, res) => res.redirect("/uiux-video"));
-app.get("/pages/subject-detail.html", (req, res) => res.redirect(`/subject-detail${req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : ""}`));
-app.get("/pages/subject-learning.html", (req, res) => res.redirect(`/subject-learning${req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : ""}`));
-// Legacy root redirects
+// ─── Root & redirects ─────────────────────────
+app.get("/", (_req, res) => res.redirect("/pages/login.html"));
 app.get("/dashboard.html", (_req, res) => res.redirect("/dashboard"));
 app.get("/profile.html", (_req, res) => res.redirect("/profile"));
-app.get("/login.html", (_req, res) => res.redirect("/login"));
-app.get("/signup.html", (_req, res) => res.redirect("/signup"));
-app.get("/Courses.html", (_req, res) => res.redirect("/courses"));
-app.get("/Sample_vid.html", (_req, res) => res.redirect("/webdev-video"));
-app.get("/Python_vid.html", (_req, res) => res.redirect("/python-video"));
-app.get("/DS_vid.html", (_req, res) => res.redirect("/ds-video"));
-app.get("/UIUX_vid.html", (_req, res) => res.redirect("/uiux-video"));
+app.get("/login.html", (_req, res) => res.redirect("/pages/login.html"));
+app.get("/signup.html", (_req, res) => res.redirect("/pages/signup.html"));
+app.get("/Courses.html", (_req, res) => res.redirect("/pages/courses.html"));
+app.get("/Sample_vid.html", (_req, res) => res.redirect("/pages/webdev-video.html"));
+app.get("/Python_vid.html", (_req, res) => res.redirect("/pages/python-video.html"));
+app.get("/DS_vid.html", (_req, res) => res.redirect("/pages/ds-video.html"));
+app.get("/UIUX_vid.html", (_req, res) => res.redirect("/pages/uiux-video.html"));
 
 app.use("/uploads", (req, res, next) => {
   if (!req.session.userId || !req.session.user) {
@@ -122,17 +100,55 @@ app.use("/uploads", (req, res, next) => {
 
 app.use(express.static(PUBLIC_DIR));
 
-function buildFallbackAiResponse(maxQuestions = 5, reason = "") {
-  const summary = "This lesson covers core concepts relevant to your course and highlights practical ideas you should review while studying the chapter.";
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function normalizeTopicLabel(value = "", fallback = "this chapter") {
+  const cleaned = String(value || "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || fallback;
+}
+
+function buildFallbackAiResponse(videoUrl = "", maxQuestions = 5, reason = "") {
+  let subject = "this subject";
+  let chapter = "this chapter";
+
+  try {
+    const parsedUrl = new URL(String(videoUrl || ""), "http://localhost");
+    subject = normalizeTopicLabel(parsedUrl.searchParams.get("subject"), "this subject");
+    chapter = normalizeTopicLabel(parsedUrl.searchParams.get("chapter"), "this chapter");
+  } catch (_) {
+    subject = "this subject";
+    chapter = "this chapter";
+  }
+
+  const summary = `${chapter} in ${subject} introduces the main ideas students should understand first, then connects those ideas to examples, definitions, and likely exam-oriented revision points. Focus on the terminology used in the lesson, how each concept relates to the overall topic, and where the chapter would be applied in problem solving or practical understanding. After watching, revise the core points, recheck any formulas, steps, or keywords mentioned, and test yourself with short-answer questions so the chapter becomes easier to recall during study and exams.`;
+
+  const summaryHtml = `
+    <p><strong>${escapeHtml(chapter)}</strong> in <strong>${escapeHtml(subject)}</strong> explains the foundation of the topic and highlights the ideas you should be comfortable with before moving ahead.</p>
+    <p>While revising, pay attention to important definitions, the sequence of concepts, and any examples or applications that show how the topic works in practice.</p>
+    <p>A good study approach is to replay the difficult parts, note the key terms, and practice explaining the chapter in your own words.</p>
+  `;
+
   const questions = [
-    { question: "What is the main focus of this lesson?", answer: "The lesson focuses on the chapter's core concepts and practical understanding." },
-    { question: "What should you revise after watching the chapter?", answer: "You should revise the important concepts, terms, and examples from the lesson." },
-    { question: "How can you improve your understanding of this topic?", answer: "Review the summary, replay the lesson if needed, and practice answering chapter questions." }
+    { question: `What is the main idea covered in ${chapter}?`, answer: `${chapter} focuses on the core concepts, definitions, and practical understanding of the topic.` },
+    { question: `What should you revise after studying ${chapter}?`, answer: `You should revise the key definitions, concepts, examples, and important terms from ${chapter}.` },
+    { question: `How can you improve your understanding of ${chapter}?`, answer: `Replay the lesson, review the summary, make short notes, and practice chapter questions.` },
+    { question: `Why is ${chapter} important in ${subject}?`, answer: `It builds foundational understanding that helps with later topics, revision, and exam preparation in ${subject}.` },
+    { question: `What is an effective way to remember ${chapter}?`, answer: `Use short notes, active recall, and regular practice with examples and questions.` }
   ];
 
   return {
     summary,
-    summary_html: `<p>${summary}</p>`,
+    summary_html: summaryHtml,
     questions: questions.slice(0, maxQuestions),
     warning: reason || undefined
   };
@@ -207,12 +223,12 @@ app.post("/api/generate", async (req, res) => {
   const OPENAI_BASE_URL = String(process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").trim().replace(/\/$/, "");
 
   if (!OPENAI_KEY) {
-    return res.json(buildFallbackAiResponse(maxQuestions, "OPENAI_API_KEY is not configured."));
+    return res.json(buildFallbackAiResponse(videoUrl, maxQuestions, "OPENAI_API_KEY is not configured."));
   }
 
   if (!OPENAI_KEY.startsWith("sk-")) {
     console.warn("AI summary fallback: OPENAI_API_KEY does not look like a valid OpenAI key.");
-    return res.json(buildFallbackAiResponse(maxQuestions, "Configured API key is not an OpenAI key."));
+    return res.json(buildFallbackAiResponse(videoUrl, maxQuestions, "Configured API key is not an OpenAI key."));
   }
 
   try {
@@ -234,7 +250,7 @@ app.post("/api/generate", async (req, res) => {
     if (!resp.ok) {
       const errorText = await resp.text();
       console.error(`OpenAI API error (${resp.status}): ${errorText}`);
-      return res.json(buildFallbackAiResponse(maxQuestions, `OpenAI request failed with status ${resp.status}.`));
+      return res.json(buildFallbackAiResponse(videoUrl, maxQuestions, `OpenAI request failed with status ${resp.status}.`));
     }
     const body = await resp.json();
     const content = body.choices?.[0]?.message?.content || "{}";
@@ -243,20 +259,13 @@ app.post("/api/generate", async (req, res) => {
     parsed.questions = Array.isArray(parsed.questions) ? parsed.questions.slice(0, maxQuestions) : [];
     return res.json(parsed);
   } catch (err) {
-    return res.status(500).json({ error: "Server error", detail: err.message });
+    console.error("AI generation failed:", err.message);
+    return res.json(buildFallbackAiResponse(videoUrl, maxQuestions, "AI service is unavailable right now. Showing local summary instead."));
   }
 });
 
-// ─── Next.js handles all remaining routes (pages, static files) ──────────
-app.all("*", (req, res) => handle(req, res));
-
-  app.listen(PORT, () => {
-    ensureStudentYearColumn();
-    console.log(`\n🚀 Learnix running at http://localhost:${PORT}`);
-    console.log(`   Visit: http://localhost:${PORT}/login\n`);
-  });
-
-}).catch((err) => {
-  console.error("Failed to start Next.js:", err);
-  process.exit(1);
+app.listen(PORT, () => {
+  ensureStudentYearColumn();
+  console.log(`\n🚀 Learnix running at http://localhost:${PORT}`);
+  console.log(`   Visit: http://localhost:${PORT}/pages/login.html\n`);
 });
