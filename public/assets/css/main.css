@@ -210,15 +210,7 @@ img { max-width: 100%; }
   transition: all 0.2s;
 }
 .theme-toggle-btn:hover { border-color: var(--blue); color: var(--blue); }
-.theme-toggle-floating {
-  position: fixed !important;
-  right: 20px !important;
-  bottom: 20px !important;
-  top: auto !important;
-  left: auto !important;
-  z-index: 1100;
-  box-shadow: var(--shadow-lg);
-}
+.theme-toggle-floating { position: fixed; top: 16px; right: 16px; z-index: 1000; }
 
 /* ─── Profile Dropdown ───────────────────────── */
 .profile-menu { position: relative; }
@@ -255,7 +247,6 @@ img { max-width: 100%; }
   z-index: 200;
   animation: dropIn 0.18s ease;
 }
-.profile-menu:focus-within .profile-dropdown,
 .profile-dropdown.open { display: block; }
 
 @keyframes dropIn {
@@ -492,15 +483,6 @@ img { max-width: 100%; }
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-}
-.signup-tab:hover {
-  border-color: var(--blue);
-  color: var(--blue);
-  background: var(--blue-pale);
-}
-.signup-tab:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.18);
-  outline-offset: 2px;
 }
 .signup-tab.active {
   background: var(--blue);
@@ -851,7 +833,6 @@ img { max-width: 100%; }
   cursor: pointer;
   transition: all 0.18s ease;
   font-family: var(--font);
-  color: var(--text);
 }
 
 .chapter-item:hover,
@@ -865,24 +846,6 @@ img { max-width: 100%; }
   display: block;
   color: var(--text);
   font-size: 0.95rem;
-  line-height: 1.45;
-}
-
-.chapter-number {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--text-light);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.chapter-title {
-  display: block;
-  color: var(--text);
-  font-size: 0.95rem;
-  font-weight: 700;
   line-height: 1.45;
 }
 
@@ -951,10 +914,6 @@ img { max-width: 100%; }
 /* ─── Modal ──────────────────────────────────── */
 .teacher-video-list {
   gap: 12px;
-}
-
-.teacher-video-list .chapter-item {
-  color: var(--text);
 }
 
 .teacher-video-badge {
@@ -1331,81 +1290,6 @@ img { max-width: 100%; }
 }
 .university-danger-btn:hover {
   background: #b91c1c;
-}
-
-.admin-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 14px;
-  margin: 18px 0;
-}
-
-.admin-summary-card {
-  background: linear-gradient(135deg, #0f172a, #1d4ed8);
-  color: #fff;
-  border-radius: 18px;
-  padding: 18px;
-}
-
-.admin-summary-card span {
-  display: block;
-  font-size: 0.82rem;
-  opacity: 0.85;
-  margin-bottom: 8px;
-}
-
-.admin-summary-card strong {
-  font-size: 1.7rem;
-}
-
-.admin-section-block {
-  margin-top: 30px;
-}
-
-.admin-list {
-  display: grid;
-  gap: 14px;
-}
-
-.admin-item {
-  background: var(--bg-white);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 20px;
-  box-shadow: var(--shadow);
-}
-
-.admin-item-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.admin-item-head h4 {
-  margin: 0;
-  font-size: 0.98rem;
-}
-
-.admin-item-head p {
-  margin: 4px 0 0;
-  font-size: 0.84rem;
-  color: var(--text-muted);
-}
-
-.admin-meta {
-  display: grid;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 0.88rem;
-  margin-bottom: 12px;
-}
-
-.admin-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 
 /* ─── My Courses Panel ───────────────────────── */

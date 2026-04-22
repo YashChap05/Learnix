@@ -17,36 +17,36 @@ const ADMIN_EMAIL = "admin@gmail.com";
 const ADMIN_PASSWORD = "Admin@123";
 
 const COURSE_VIDEO_MAP = {
-  "web development": "/webdev-video",
-  "python programming": "/python-video",
-  "data science": "/ds-video",
-  "ui / ux design": "/uiux-video",
-  "ui/ux design": "/uiux-video",
-  "dbms": "/subject-detail?subject=dbms",
-  "operating systems": "/subject-detail?subject=operating-systems",
-  "ct": "/subject-detail?subject=ct",
-  "telecommunication": "/subject-detail?subject=telecommunication",
-  "fintech": "/subject-detail?subject=fintech",
-  "data structures": "/subject-detail?subject=data-structures",
-  "computer networks": "/subject-detail?subject=computer-networks",
-  "java programming": "/subject-detail?subject=java-programming",
-  "software engineering": "/subject-detail?subject=software-engineering",
-  "digital electronics": "/subject-detail?subject=digital-electronics",
-  "machine learning": "/subject-detail?subject=machine-learning",
-  "cloud computing": "/subject-detail?subject=cloud-computing",
-  "cyber security": "/subject-detail?subject=cyber-security",
-  "web technologies": "/subject-detail?subject=web-technologies",
-  "mobile app development": "/subject-detail?subject=mobile-app-development",
-  "artificial intelligence": "/subject-detail?subject=artificial-intelligence",
-  "big data analytics": "/subject-detail?subject=big-data-analytics",
-  "internet of things": "/subject-detail?subject=internet-of-things",
-  "blockchain": "/subject-detail?subject=blockchain",
-  "project management": "/subject-detail?subject=project-management",
-  "physics": "/subject-detail?subject=physics",
-  "chemistry": "/subject-detail?subject=chemistry",
-  "mathematics": "/subject-detail?subject=mathematics",
-  "english": "/subject-detail?subject=english",
-  "computer science": "/subject-detail?subject=computer-science"
+  "web development": "/pages/webdev-video.html",
+  "python programming": "/pages/python-video.html",
+  "data science": "/pages/ds-video.html",
+  "ui / ux design": "/pages/uiux-video.html",
+  "ui/ux design": "/pages/uiux-video.html",
+  "dbms": "/pages/subject-detail.html?subject=dbms",
+  "operating systems": "/pages/subject-detail.html?subject=operating-systems",
+  "ct": "/pages/subject-detail.html?subject=ct",
+  "telecommunication": "/pages/subject-detail.html?subject=telecommunication",
+  "fintech": "/pages/subject-detail.html?subject=fintech",
+  "data structures": "/pages/subject-detail.html?subject=data-structures",
+  "computer networks": "/pages/subject-detail.html?subject=computer-networks",
+  "java programming": "/pages/subject-detail.html?subject=java-programming",
+  "software engineering": "/pages/subject-detail.html?subject=software-engineering",
+  "digital electronics": "/pages/subject-detail.html?subject=digital-electronics",
+  "machine learning": "/pages/subject-detail.html?subject=machine-learning",
+  "cloud computing": "/pages/subject-detail.html?subject=cloud-computing",
+  "cyber security": "/pages/subject-detail.html?subject=cyber-security",
+  "web technologies": "/pages/subject-detail.html?subject=web-technologies",
+  "mobile app development": "/pages/subject-detail.html?subject=mobile-app-development",
+  "artificial intelligence": "/pages/subject-detail.html?subject=artificial-intelligence",
+  "big data analytics": "/pages/subject-detail.html?subject=big-data-analytics",
+  "internet of things": "/pages/subject-detail.html?subject=internet-of-things",
+  "blockchain": "/pages/subject-detail.html?subject=blockchain",
+  "project management": "/pages/subject-detail.html?subject=project-management",
+  "physics": "/pages/subject-detail.html?subject=physics",
+  "chemistry": "/pages/subject-detail.html?subject=chemistry",
+  "mathematics": "/pages/subject-detail.html?subject=mathematics",
+  "english": "/pages/subject-detail.html?subject=english",
+  "computer science": "/pages/subject-detail.html?subject=computer-science"
 };
 
 const normalizeText = (value) => String(value || "").trim();
@@ -56,7 +56,7 @@ const normalizeCourseName = (value) => normalizeText(value).toLowerCase().replac
 
 const resolveCourseVideoPath = (courseName, uploadedPath) => {
   if (uploadedPath) return uploadedPath;
-  return COURSE_VIDEO_MAP[normalizeCourseName(courseName)] || "/courses";
+  return COURSE_VIDEO_MAP[normalizeCourseName(courseName)] || "/pages/courses.html";
 };
 
 const resolveDeptId = ({ branch, createIfMissing }, callback) => {
@@ -174,7 +174,7 @@ router.post("/signup", async (req, res) => {
           if (err.code === "ER_DUP_ENTRY") return res.status(400).send("University or email already registered");
           return res.status(500).send("Error during university registration");
         }
-        return res.redirect("/login");
+        return res.redirect("/pages/login.html");
       }
     );
     return;
@@ -204,7 +204,7 @@ router.post("/signup", async (req, res) => {
               if (err.code === "ER_DUP_ENTRY") return res.status(400).send("Email already registered");
               return res.status(500).send("Error during teacher registration");
             }
-            return res.redirect("/login");
+            return res.redirect("/pages/login.html");
           }
         );
         return;
@@ -218,7 +218,7 @@ router.post("/signup", async (req, res) => {
             if (err.code === "ER_DUP_ENTRY") return res.status(400).send("Email already registered");
             return res.status(500).send("Error during student registration");
           }
-          return res.redirect("/login");
+          return res.redirect("/pages/login.html");
         }
       );
     });
@@ -282,7 +282,7 @@ router.post("/login", (req, res) => {
           subject: null,
           userSource: "university"
         });
-        return res.redirect("/home");
+        return res.redirect("/pages/home.html");
       }
     );
     return;
@@ -320,7 +320,7 @@ router.post("/login", (req, res) => {
             subject: rows[0].subject || null,
             userSource: "teacher"
           });
-          return res.redirect("/home");
+          return res.redirect("/pages/home.html");
         }
       );
     });
@@ -358,10 +358,20 @@ router.post("/login", (req, res) => {
           subject: null,
           userSource: "auth_users"
         });
-        return res.redirect("/home");
+        return res.redirect("/pages/home.html");
       }
     );
   });
+});
+
+router.get("/dashboard", (req, res) => {
+  if (!req.session.userId) return res.redirect("/pages/login.html");
+  res.sendFile(path.join(__dirname, "..", "..", "public", "pages", "dashboard.html"));
+});
+
+router.get("/profile", (req, res) => {
+  if (!req.session.userId) return res.redirect("/pages/login.html");
+  res.sendFile(path.join(__dirname, "..", "..", "public", "pages", "profile.html"));
 });
 
 router.get("/api/me", (req, res) => {
@@ -1307,7 +1317,7 @@ router.post("/api/university/courses/remove-video", (req, res) => {
 
 router.get("/logout", (req, res) => {
   req.session.destroy();
-  res.redirect("/login");
+  res.redirect("/pages/login.html");
 });
 
 module.exports = router;
