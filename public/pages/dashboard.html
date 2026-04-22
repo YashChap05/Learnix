@@ -294,6 +294,7 @@
 
 <script src="/assets/js/main.js"></script>
 <script>
+  const ACADEMIC_YEARS = ['First Year', 'Second Year', 'Third Year', 'Final Year', 'Class 12'];
   const fmt = (v, sfx) => (v === null || v === undefined || isNaN(v)) ? 'N/A' : `${v}${sfx || ''}`;
   const teacherUploadForm = document.getElementById('teacherUploadForm');
   let teacherCache = [];
@@ -328,6 +329,17 @@
     if (!value) return 'N/A';
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? 'N/A' : parsed.toLocaleDateString();
+  }
+
+  function promptAcademicYear(currentValue, message) {
+    const year = window.prompt(`${message}\nOptions: ${ACADEMIC_YEARS.join(', ')}`, currentValue || '');
+    if (year === null) return null;
+    const normalized = ACADEMIC_YEARS.find((item) => item.toLowerCase() === String(year).trim().toLowerCase());
+    if (!normalized && String(year).trim()) {
+      window.alert('Please enter one of the listed academic years exactly.');
+      return undefined;
+    }
+    return normalized || '';
   }
 
   function renderPerformanceCards(perf) {
@@ -663,6 +675,14 @@
               <article class="branch-mini-card">
                 <strong>${escapeHtml(student.student_name || 'Student')}</strong>
                 <span>${escapeHtml(student.student_email || '')}</span>
+                <small>${escapeHtml(student.academic_year || 'Year not assigned')}</small>
+                <div class="university-action-row" style="margin-top:10px;">
+                  <select id="yearAssign-${student.student_id}" class="university-select">
+                    <option value="">Select year</option>
+                    ${ACADEMIC_YEARS.map((year) => `<option value="${year}" ${student.academic_year === year ? 'selected' : ''}>${year}</option>`).join('')}
+                  </select>
+                  <button class="schedule-demo university-action-btn" type="button" data-action="assign-year" data-student-id="${student.student_id}">Assign Year</button>
+                </div>
               </article>
             `).join('') : '<div class="chart-empty">No students in this branch yet.</div>'}
           </div>
@@ -963,6 +983,7 @@
         <div class="admin-meta">
           <span>Branch: ${escapeHtml(item.dept_name || 'N/A')}</span>
           <span>University: ${escapeHtml(item.university_name || 'N/A')}</span>
+          <span>Year: ${escapeHtml(item.academic_year || 'Not assigned')}</span>
           <span>Created: ${formatDate(item.created_at)}</span>
         </div>
         <div class="admin-actions">
@@ -1112,11 +1133,14 @@
       if (branch === null) return null;
       const universityName = window.prompt('University name', record ? (record.university_name || '') : '');
       if (universityName === null) return null;
+      const academicYear = promptAcademicYear(record ? (record.academic_year || '') : '', 'Assigned academic year');
+      if (academicYear === null) return null;
+      if (academicYear === undefined) return null;
       const password = window.prompt(record ? 'New password (leave blank to keep current password)' : 'Password for this student', '');
       if (password === null) return null;
       return {
         endpoint: '/api/admin/students/save',
-        body: { studentId: record ? record.id : null, username, email, branch, universityName, password }
+        body: { studentId: record ? record.id : null, username, email, branch, universityName, academicYear, password }
       };
     }
 
@@ -1236,6 +1260,13 @@
         const enrollmentId = Number(button.getAttribute('data-enrollment-id'));
         const data = await postJson('/api/university/enrollments/remove', { enrollmentId });
         setStatusMessage('universityStatusMsg', 'success', data.message || 'Enrollment removed.');
+      } else if (action === 'assign-year') {
+        const studentId = Number(button.getAttribute('data-student-id'));
+        const select = document.getElementById(`yearAssign-${studentId}`);
+        const academicYear = select ? String(select.value || '').trim() : '';
+        if (!academicYear) throw new Error('Select a year first.');
+        const data = await postJson('/api/university/students/assign-year', { studentId, academicYear });
+        setStatusMessage('universityStatusMsg', 'success', data.message || 'Student year updated.');
       } else if (action === 'change-course') {
         const enrollmentId = Number(button.getAttribute('data-enrollment-id'));
         const select = document.getElementById(`courseChange-${enrollmentId}`);
@@ -1271,6 +1302,7 @@
     renderUniversityTeachers();
     renderUniversityUploads();
   });
+  document.getElementById('universityBranchDetail').addEventListener('click', handleUniversityAction);
   document.getElementById('universityEnrollmentGrid').addEventListener('click', handleUniversityAction);
   document.getElementById('universityUploadGrid').addEventListener('click', handleUniversityAction);
   document.getElementById('adminSection').addEventListener('click', handleAdminAction);

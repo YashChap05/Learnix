@@ -15,6 +15,7 @@ const ENROLL_TABLE = "enrollment";
 const PERFORMANCE_TABLE = "student_performance";
 const ADMIN_EMAIL = "admin@gmail.com";
 const ADMIN_PASSWORD = "Admin@123";
+const ACADEMIC_YEARS = ["First Year", "Second Year", "Third Year", "Final Year", "Class 12"];
 
 const COURSE_VIDEO_MAP = {
   "web development": "/pages/webdev-video.html",
@@ -53,6 +54,41 @@ const normalizeText = (value) => String(value || "").trim();
 const normalizeEmail = (value) => normalizeText(value).toLowerCase();
 const normalizeRole = (value) => normalizeText(value).toLowerCase();
 const normalizeCourseName = (value) => normalizeText(value).toLowerCase().replace(/\s+/g, " ");
+const normalizeAcademicYear = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  const match = ACADEMIC_YEARS.find((year) => year.toLowerCase() === normalized);
+  return match || null;
+};
+
+const COURSE_YEAR_BY_NAME = {
+  "dbms": "First Year",
+  "operating systems": "First Year",
+  "ct": "First Year",
+  "telecommunication": "First Year",
+  "fintech": "First Year",
+  "data structures": "Second Year",
+  "computer networks": "Second Year",
+  "java programming": "Second Year",
+  "software engineering": "Second Year",
+  "digital electronics": "Second Year",
+  "machine learning": "Third Year",
+  "cloud computing": "Third Year",
+  "cyber security": "Third Year",
+  "web technologies": "Third Year",
+  "mobile app development": "Third Year",
+  "artificial intelligence": "Final Year",
+  "big data analytics": "Final Year",
+  "internet of things": "Final Year",
+  "blockchain": "Final Year",
+  "project management": "Final Year",
+  "physics": "Class 12",
+  "chemistry": "Class 12",
+  "mathematics": "Class 12",
+  "english": "Class 12",
+  "computer science": "Class 12"
+};
+
+const getCourseAcademicYear = (courseName) => COURSE_YEAR_BY_NAME[normalizeCourseName(courseName)] || null;
 
 const resolveCourseVideoPath = (courseName, uploadedPath) => {
   if (uploadedPath) return uploadedPath;
@@ -307,19 +343,20 @@ router.post("/login", (req, res) => {
           const match = await bcrypt.compare(password, rows[0].password);
           if (!match) return res.status(401).send("Invalid email or password");
 
-          completeLoginSession(req, {
-            id: rows[0].teacher_id,
-            username: rows[0].name,
-            email: rows[0].email,
-            role: "teacher",
+        completeLoginSession(req, {
+          id: rows[0].teacher_id,
+          username: rows[0].name,
+          email: rows[0].email,
+          role: "teacher",
             dept_id: rows[0].dept_id,
             department: deptName || rows[0].dept_name || "",
-            university_id: rows[0].university_id,
-            university_name: rows[0].university_name || "",
-            principal_name: null,
-            subject: rows[0].subject || null,
-            userSource: "teacher"
-          });
+          university_id: rows[0].university_id,
+          university_name: rows[0].university_name || "",
+          principal_name: null,
+          subject: rows[0].subject || null,
+          academic_year: null,
+          userSource: "teacher"
+        });
           return res.redirect("/pages/home.html");
         }
       );
@@ -331,7 +368,7 @@ router.post("/login", (req, res) => {
   resolveDeptId({ branch, createIfMissing: false }, (deptErr, deptId, deptName) => {
     if (deptErr || !deptId) return res.status(400).send("Invalid branch selected");
     db.query(
-      `SELECT u.id, u.username, u.email, u.role, u.password, u.dept_id, u.university_id,
+      `SELECT u.id, u.username, u.email, u.role, u.password, u.dept_id, u.university_id, u.academic_year,
               d.dept_name, uni.university_name
        FROM ${AUTH_TABLE} u
        LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = u.dept_id
@@ -356,6 +393,7 @@ router.post("/login", (req, res) => {
           university_name: rows[0].university_name || "",
           principal_name: null,
           subject: null,
+          academic_year: normalizeAcademicYear(rows[0].academic_year),
           userSource: "auth_users"
         });
         return res.redirect("/pages/home.html");
@@ -473,6 +511,15 @@ router.post("/api/enroll", (req, res) => {
 
   const userId = Number(req.session.userId);
   const deptId = Number(req.session.user.dept_id) || null;
+  const studentYear = normalizeAcademicYear(req.session.user.academic_year);
+  const courseYear = getCourseAcademicYear(courseName);
+
+  if (!studentYear) {
+    return res.status(403).json({ error: "Your university has not assigned your academic year yet." });
+  }
+  if (courseYear && courseYear !== studentYear) {
+    return res.status(403).json({ error: `This subject belongs to ${courseYear}. Please take permission from your university to access it.` });
+  }
 
   db.query(`SELECT course_id, course_name FROM ${COURSE_TABLE} WHERE course_name = ? LIMIT 1`, [courseName], (err, courseRows) => {
     if (err) return res.status(500).json({ error: "Failed to fetch course" });
@@ -704,7 +751,7 @@ router.get("/api/university/dashboard", (req, res) => {
                 if (teacherErr) return res.status(500).json({ error: "Failed to load teacher performance" });
                 db.query(
                   `SELECT d.dept_id, d.dept_name,
-                          s.id AS student_id, s.username AS student_name, s.email AS student_email,
+                          s.id AS student_id, s.username AS student_name, s.email AS student_email, s.academic_year,
                           t.teacher_id, t.name AS teacher_name, t.email AS teacher_email, t.subject
                    FROM ${DEPT_TABLE} d
                    LEFT JOIN ${AUTH_TABLE} s
@@ -735,7 +782,8 @@ router.get("/api/university/dashboard", (req, res) => {
                         branch.students.push({
                           student_id: row.student_id,
                           student_name: row.student_name,
-                          student_email: row.student_email
+                          student_email: row.student_email,
+                          academic_year: normalizeAcademicYear(row.academic_year)
                         });
                       }
                       if (row.teacher_id && !branch.teachers.some((teacher) => teacher.teacher_id === row.teacher_id)) {
@@ -803,7 +851,7 @@ router.get("/api/admin/dashboard", (req, res) => {
             if (teacherErr) return res.status(500).json({ error: "Failed to load teachers" });
 
             db.query(
-              `SELECT s.id, s.username, s.email, s.dept_id, s.university_id, s.created_at,
+              `SELECT s.id, s.username, s.email, s.dept_id, s.university_id, s.academic_year, s.created_at,
                       d.dept_name, u.university_name
                FROM ${AUTH_TABLE} s
                LEFT JOIN ${DEPT_TABLE} d ON d.dept_id = s.dept_id
@@ -1023,6 +1071,7 @@ router.post("/api/admin/students/save", async (req, res) => {
   const branch = normalizeText(req.body && req.body.branch);
   const universityName = normalizeText(req.body && req.body.universityName);
   const password = normalizeText(req.body && req.body.password);
+  const academicYear = normalizeAcademicYear(req.body && req.body.academicYear);
 
   if (!username || !email || !branch || !universityName) {
     return res.status(400).json({ error: "Name, email, branch, and university are required" });
@@ -1038,9 +1087,9 @@ router.post("/api/admin/students/save", async (req, res) => {
           const hashedPassword = await bcrypt.hash(password, 10);
           db.query(
             `UPDATE ${AUTH_TABLE}
-             SET username = ?, email = ?, dept_id = ?, university_id = ?, password = ?
+             SET username = ?, email = ?, dept_id = ?, university_id = ?, academic_year = ?, password = ?
              WHERE id = ? AND role = 'student'`,
-            [username, email, deptId, university.university_id, hashedPassword, studentId],
+            [username, email, deptId, university.university_id, academicYear, hashedPassword, studentId],
             (err) => {
               if (err) return res.status(500).json({ error: "Failed to update student" });
               return res.json({ message: "Student updated successfully" });
@@ -1051,9 +1100,9 @@ router.post("/api/admin/students/save", async (req, res) => {
 
         db.query(
           `UPDATE ${AUTH_TABLE}
-           SET username = ?, email = ?, dept_id = ?, university_id = ?
+           SET username = ?, email = ?, dept_id = ?, university_id = ?, academic_year = ?
            WHERE id = ? AND role = 'student'`,
-          [username, email, deptId, university.university_id, studentId],
+          [username, email, deptId, university.university_id, academicYear, studentId],
           (err) => {
             if (err) return res.status(500).json({ error: "Failed to update student" });
             return res.json({ message: "Student updated successfully" });
@@ -1065,9 +1114,9 @@ router.post("/api/admin/students/save", async (req, res) => {
       if (!password) return res.status(400).json({ error: "Password is required for new students" });
       const hashedPassword = await bcrypt.hash(password, 10);
       db.query(
-        `INSERT INTO ${AUTH_TABLE} (username, email, role, dept_id, university_id, password)
-         VALUES (?, ?, 'student', ?, ?, ?)`,
-        [username, email, deptId, university.university_id, hashedPassword],
+        `INSERT INTO ${AUTH_TABLE} (username, email, role, dept_id, university_id, academic_year, password)
+         VALUES (?, ?, 'student', ?, ?, ?, ?)`,
+        [username, email, deptId, university.university_id, academicYear, hashedPassword],
         (err) => {
           if (err) return res.status(500).json({ error: "Failed to add student" });
           return res.json({ message: "Student added successfully" });
@@ -1086,6 +1135,29 @@ router.post("/api/admin/students/delete", (req, res) => {
     if (err) return res.status(500).json({ error: "Failed to delete student" });
     return res.json({ message: "Student deleted successfully" });
   });
+});
+
+router.post("/api/university/students/assign-year", (req, res) => {
+  if (!requireUniversity(req, res)) return;
+
+  const studentId = Number(req.body && req.body.studentId);
+  const academicYear = normalizeAcademicYear(req.body && req.body.academicYear);
+  const universityId = Number(req.session.userId);
+
+  if (!studentId) return res.status(400).json({ error: "studentId is required" });
+  if (!academicYear) return res.status(400).json({ error: "A valid academic year is required" });
+
+  db.query(
+    `UPDATE ${AUTH_TABLE}
+     SET academic_year = ?
+     WHERE id = ? AND role = 'student' AND university_id = ?`,
+    [academicYear, studentId, universityId],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: "Failed to assign student year" });
+      if (!result || result.affectedRows === 0) return res.status(404).json({ error: "Student not found" });
+      return res.json({ message: `Student year updated to ${academicYear}.`, academicYear });
+    }
+  );
 });
 
 router.post("/api/admin/courses/save", (req, res) => {

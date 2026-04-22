@@ -46,6 +46,7 @@
           <a href="/pages/courses.html" class="schedule-demo">Browse More Subjects</a>
         </div>
         <div id="enrollMsg" class="status-msg" style="display:none;"></div>
+        <div id="yearAccessMsg" class="status-msg error" style="display:none;margin-top:12px;"></div>
       </div>
     </div>
 
@@ -545,11 +546,14 @@
     }
   };
 
+  const ACADEMIC_YEARS = ["First Year", "Second Year", "Third Year", "Final Year", "Class 12"];
   const subjectKey = new URLSearchParams(window.location.search).get("subject");
   const subject = SUBJECTS[subjectKey];
   const enrollBtn = document.getElementById("enrollBtn");
   const enrollMsg = document.getElementById("enrollMsg");
   const openLessonsBtn = document.getElementById("openLessonsBtn");
+  const yearAccessMsg = document.getElementById("yearAccessMsg");
+  let currentUser = null;
 
   function addEnrolledFlag(url) {
     return url + (url.includes("?") ? "&" : "?") + "enrolled=1";
@@ -562,6 +566,34 @@
   function showLessonsButton(useEnrolledFlag) {
     openLessonsBtn.href = useEnrolledFlag ? addEnrolledFlag(lessonPageUrl()) : lessonPageUrl();
     openLessonsBtn.style.display = "inline-block";
+  }
+
+  function normalizeAcademicYear(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return ACADEMIC_YEARS.find((year) => year.toLowerCase() === normalized) || null;
+  }
+
+  function applyYearAccessState() {
+    if (!subject || !currentUser || currentUser.role !== "student") {
+      yearAccessMsg.style.display = "none";
+      return false;
+    }
+
+    const assignedYear = normalizeAcademicYear(currentUser.academic_year);
+    const allowed = assignedYear && assignedYear === subject.year;
+    if (allowed) {
+      yearAccessMsg.style.display = "none";
+      return false;
+    }
+
+    enrollBtn.disabled = true;
+    enrollBtn.textContent = "University Permission Required";
+    openLessonsBtn.style.display = "none";
+    yearAccessMsg.style.display = "block";
+    yearAccessMsg.textContent = assignedYear
+      ? `This subject belongs to ${subject.year}. Your assigned year is ${assignedYear}. Please take permission from your university to continue.`
+      : "Your university has not assigned your academic year yet, so this subject is locked.";
+    return true;
   }
 
   function renderSubject() {
@@ -591,6 +623,7 @@
     fetch("/api/me", { credentials: "same-origin" })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(user => {
+        currentUser = user;
         document.getElementById("navActions").innerHTML = `
           <div class="profile-menu">
             <button id="profileTrigger" class="profile-trigger" type="button">${user.email || "My Account"}</button>
@@ -608,6 +641,8 @@
         document.addEventListener("click", e => {
           if (!dropdown.contains(e.target) && e.target !== trigger) dropdown.classList.remove("open");
         });
+
+        if (applyYearAccessState()) return;
 
         if (new URLSearchParams(window.location.search).get("enrolled") === "1") {
           enrollBtn.textContent = "Enrolled";
@@ -632,7 +667,9 @@
             }
           });
       })
-      .catch(() => {});
+      .catch(() => {
+        currentUser = null;
+      });
   }
 
   async function handleEnroll() {
@@ -644,10 +681,14 @@
       return;
     }
 
-    enrollBtn.textContent = "Enrolling...";
-    enrollBtn.disabled = true;
-
     try {
+      const user = await authRes.json();
+      currentUser = user;
+      if (applyYearAccessState()) return;
+
+      enrollBtn.textContent = "Enrolling...";
+      enrollBtn.disabled = true;
+
       const res = await fetch("/api/enroll", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

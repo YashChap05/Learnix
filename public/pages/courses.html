@@ -10,7 +10,7 @@
 
 <header class="navbar">
   <a href="/pages/home.html" class="logo">
-    <span class="logo-icon">📖</span>
+    <span class="logo-icon">Learn</span>
     <span class="logo-text">Learnix</span>
   </a>
   <nav>
@@ -29,7 +29,7 @@
 
 <main>
   <section class="hero" style="padding-bottom:24px;">
-    <div class="transform-banner"><span>📘 Explore Our Courses</span></div>
+    <div class="transform-banner"><span>Explore Our Courses</span></div>
     <h1>Choose Subjects by <span class="journey">Year</span></h1>
     <p class="subtitle">
       Browse year-wise subjects, open a dedicated page for each one, and enroll directly in the subject you want to study.
@@ -41,6 +41,7 @@
       <h2>Year-Wise Subject Catalog</h2>
       <p>Each subject opens its own page when you click enroll, so students can go straight into the right course.</p>
     </div>
+    <div id="yearAccessBanner" class="status-msg" style="display:none;margin:0 0 18px;"></div>
     <div id="subjectCatalog"></div>
   </section>
 </main>
@@ -48,13 +49,14 @@
 <section class="cta">
   <h2>Start Learning Today</h2>
   <p>Pick your year, open the subject page, and begin learning with Learnix.</p>
-  <a href="/pages/signup.html">Get Started Free →</a>
+  <a href="/pages/signup.html">Get Started Free</a>
 </section>
 
 <footer><p>&copy; 2025 Learnix. All rights reserved.</p></footer>
 
 <script src="/assets/js/main.js"></script>
 <script>
+  const ACADEMIC_YEARS = ["First Year", "Second Year", "Third Year", "Final Year", "Class 12"];
   const SUBJECT_GROUPS = [
     {
       title: "First Year",
@@ -113,13 +115,46 @@
     }
   ];
 
+  let currentUser = null;
+
   function subjectUrl(slug) {
     return "/pages/subject-detail.html?subject=" + slug;
   }
 
+  function normalizeAcademicYear(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return ACADEMIC_YEARS.find((year) => year.toLowerCase() === normalized) || null;
+  }
+
+  function canAccessGroup(groupTitle) {
+    if (!currentUser || currentUser.role !== "student") return true;
+    const assignedYear = normalizeAcademicYear(currentUser.academic_year);
+    return !!assignedYear && assignedYear === groupTitle;
+  }
+
+  function renderAccessBanner() {
+    const banner = document.getElementById("yearAccessBanner");
+    if (!currentUser || currentUser.role !== "student") {
+      banner.style.display = "none";
+      return;
+    }
+
+    const assignedYear = normalizeAcademicYear(currentUser.academic_year);
+    if (!assignedYear) {
+      banner.className = "status-msg error";
+      banner.textContent = "Your university has not assigned your academic year yet. Until then, your courses stay locked.";
+      banner.style.display = "block";
+      return;
+    }
+
+    banner.className = "status-msg success";
+    banner.textContent = `Assigned year: ${assignedYear}. You can only open subjects from this year. For other years, please take permission from your university.`;
+    banner.style.display = "block";
+  }
+
   function renderCatalog() {
     const container = document.getElementById("subjectCatalog");
-    container.innerHTML = SUBJECT_GROUPS.map(group => `
+    container.innerHTML = SUBJECT_GROUPS.map((group) => `
       <section class="subject-group">
         <div class="subject-group-header">
           <div>
@@ -128,49 +163,65 @@
           </div>
         </div>
         <div class="course-grid">
-          ${group.subjects.map(subject => `
-            <article class="course-card subject-card">
-              <div class="badge">${subject.badge}</div>
-              <h3>${subject.name}</h3>
-              <p>${subject.summary}</p>
-              <div class="course-meta">
-                <span>📚 Dedicated subject page</span>
-                <span>📝 Enrollment available</span>
-              </div>
-              <a href="${subjectUrl(subject.slug)}" class="course-btn">Enroll Now</a>
-              <a href="${subjectUrl(subject.slug)}" class="course-btn sample-btn">Open Subject</a>
-            </article>
-          `).join("")}
+          ${group.subjects.map((subject) => {
+            const allowed = canAccessGroup(group.title);
+            return `
+              <article class="course-card subject-card">
+                <div class="badge">${subject.badge}</div>
+                <h3>${subject.name}</h3>
+                <p>${subject.summary}</p>
+                <div class="course-meta">
+                  <span>Dedicated subject page</span>
+                  <span>${allowed ? "Enrollment available" : "University permission required"}</span>
+                </div>
+                ${allowed
+                  ? `<a href="${subjectUrl(subject.slug)}" class="course-btn">Enroll Now</a>
+                     <a href="${subjectUrl(subject.slug)}" class="course-btn sample-btn">Open Subject</a>`
+                  : `<button type="button" class="course-btn" disabled>Locked for ${group.title}</button>
+                     <button type="button" class="course-btn sample-btn" disabled>Take University Permission</button>`
+                }
+              </article>
+            `;
+          }).join("")}
         </div>
       </section>
     `).join("");
   }
 
-  fetch("/api/me", { credentials: "same-origin" })
-    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-    .then(user => {
-      currentUser = user;
-      document.getElementById("navActions").innerHTML = `
-        <div class="profile-menu">
-          <button id="profileTrigger" class="profile-trigger" type="button">${user.email || "My Account"}</button>
-          <div id="profileDropdown" class="profile-dropdown">
-            <div class="profile-email">${user.email || ""}</div>
-            <a href="/dashboard" class="profile-item">📊 Dashboard</a>
-            <a href="/profile" class="profile-item">👤 My Profile</a>
-            <a href="/logout" class="profile-item" style="color:#dc2626;">Sign Out</a>
-          </div>
+  function wireNav(user) {
+    document.getElementById("navActions").innerHTML = `
+      <div class="profile-menu">
+        <button id="profileTrigger" class="profile-trigger" type="button">${user.email || "My Account"}</button>
+        <div id="profileDropdown" class="profile-dropdown">
+          <div class="profile-email">${user.email || ""}</div>
+          <a href="/dashboard" class="profile-item">Dashboard</a>
+          <a href="/profile" class="profile-item">My Profile</a>
+          <a href="/logout" class="profile-item" style="color:#dc2626;">Sign Out</a>
         </div>
-      `;
-      const trigger = document.getElementById("profileTrigger");
-      const dropdown = document.getElementById("profileDropdown");
-      trigger.addEventListener("click", () => dropdown.classList.toggle("open"));
-      document.addEventListener("click", e => {
-        if (!dropdown.contains(e.target) && e.target !== trigger) dropdown.classList.remove("open");
-      });
-    })
-    .catch(() => { currentUser = null; });
+      </div>
+    `;
+    const trigger = document.getElementById("profileTrigger");
+    const dropdown = document.getElementById("profileDropdown");
+    trigger.addEventListener("click", () => dropdown.classList.toggle("open"));
+    document.addEventListener("click", (e) => {
+      if (!dropdown.contains(e.target) && e.target !== trigger) dropdown.classList.remove("open");
+    });
+  }
 
-  let currentUser = null;
+  fetch("/api/me", { credentials: "same-origin" })
+    .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
+    .then((user) => {
+      currentUser = user;
+      renderAccessBanner();
+      renderCatalog();
+      wireNav(user);
+    })
+    .catch(() => {
+      currentUser = null;
+      renderAccessBanner();
+      renderCatalog();
+    });
+
   renderCatalog();
 </script>
 </body>

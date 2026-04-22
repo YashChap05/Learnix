@@ -79,6 +79,11 @@
             <label>Branch</label>
             <span>${user.department || '-'}</span>
           </div>
+          ${user.role === 'student' ? `
+          <div class="profile-field">
+            <label>Academic Year</label>
+            <span>${user.academic_year || 'Not assigned yet'}</span>
+          </div>` : ''}
           ${user.role === 'teacher' ? `
           <div class="profile-field">
             <label>Subject</label>

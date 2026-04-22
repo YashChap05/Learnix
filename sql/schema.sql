@@ -33,6 +33,7 @@ CREATE TABLE auth_users (
     role VARCHAR(20) NOT NULL DEFAULT 'student',
     dept_id INT NULL,
     university_id INT NOT NULL,
+    academic_year VARCHAR(30) NULL,
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (dept_id) REFERENCES dept(dept_id),

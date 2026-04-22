@@ -35,6 +35,7 @@
       <p id="learningSubtitle">Choose a chapter from the left to play the lesson and load its AI summary.</p>
     </div>
   </div>
+  <div id="learningAccessMsg" class="status-msg error" style="display:none;margin-bottom:18px;"></div>
 
   <div class="learning-layout">
     <aside class="chapters-panel">
@@ -558,6 +559,7 @@
     }
   };
 
+  const ACADEMIC_YEARS = ["First Year", "Second Year", "Third Year", "Final Year", "Class 12"];
   const subjectKey = new URLSearchParams(window.location.search).get("subject");
   const lessonData = SUBJECT_LIBRARY[subjectKey];
   const fallbackChapters = Array.from({ length: 10 }, (_, index) => `Chapter ${index + 1}`);
@@ -571,6 +573,7 @@
   let currentQuizIndex = 0;
   let currentQuizAttempts = 0;
   let quizScore = 0;
+  let currentUser = null;
 
   function getChapterList() {
     const base = (lessonData && Array.isArray(lessonData.chapters) && lessonData.chapters.length > 0)
@@ -604,10 +607,45 @@
     return chapterVideoUrl() + `?subject=${encodeURIComponent(safeSubject)}&chapter=${encodeURIComponent(chapterName)}`;
   }
 
+  function normalizeAcademicYear(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return ACADEMIC_YEARS.find((year) => year.toLowerCase() === normalized) || null;
+  }
+
+  function applyLearningAccessState() {
+    const accessMsg = document.getElementById("learningAccessMsg");
+    if (!lessonData || !currentUser || currentUser.role !== "student") {
+      accessMsg.style.display = "none";
+      return false;
+    }
+
+    const assignedYear = normalizeAcademicYear(currentUser.academic_year);
+    const allowed = assignedYear && assignedYear === lessonData.year;
+    if (allowed) {
+      accessMsg.style.display = "none";
+      return false;
+    }
+
+    accessMsg.textContent = assignedYear
+      ? `This subject belongs to ${lessonData.year}. Your assigned year is ${assignedYear}. Please take permission from your university before viewing these lessons.`
+      : "Your university has not assigned your academic year yet, so these lessons are locked.";
+    accessMsg.style.display = "block";
+    document.getElementById("learningSubtitle").textContent = "Subject access is locked until your university grants permission.";
+    document.getElementById("chapterList").innerHTML = '<div class="quiz-empty">Lessons are locked.</div>';
+    document.getElementById("teacherVideoList").innerHTML = '<div class="quiz-empty">Teacher videos are locked.</div>';
+    document.getElementById("summaryText").textContent = "AI summary is unavailable while this subject is locked.";
+    document.getElementById("quizList").innerHTML = '<div class="quiz-empty">Quiz access is locked.</div>';
+    document.getElementById("generateAiBtn").disabled = true;
+    document.getElementById("chapterVideoSource").src = "";
+    document.getElementById("chapterVideo").load();
+    return true;
+  }
+
   function renderAuth() {
     fetch('/api/me', { credentials: 'same-origin' })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(user => {
+        currentUser = user;
         document.getElementById('navActions').innerHTML = `
           <div class="profile-menu">
             <button id="profileTrigger" class="profile-trigger" type="button">${user.email || 'My Account'}</button>
@@ -625,6 +663,8 @@
         document.addEventListener('click', e => {
           if (!dropdown.contains(e.target) && e.target !== trigger) dropdown.classList.remove('open');
         });
+        if (applyLearningAccessState()) return;
+        loadTeacherUploadedVideos();
       })
       .catch(() => {});
   }
@@ -710,6 +750,7 @@
   }
 
   function updateSelectedChapter() {
+    if (applyLearningAccessState()) return;
     if (allItems.length === 0) buildAllItems();
     if (selectedChapter >= allItems.length) selectedChapter = 0;
     
@@ -815,6 +856,7 @@
   }
 
   async function loadTeacherUploadedVideos() {
+    if (applyLearningAccessState()) return;
     uploadedVideos = [];
     if (!lessonData || !lessonData.name) return;
     
@@ -838,6 +880,7 @@
   }
 
   async function generateChapterAI() {
+    if (applyLearningAccessState()) return;
     const btn = document.getElementById("generateAiBtn");
     const summaryText = document.getElementById("summaryText");
     const quizList = document.getElementById("quizList");
@@ -892,10 +935,6 @@
   document.getElementById("generateAiBtn").addEventListener("click", generateChapterAI);
   renderAuth();
   renderPageShell();
-  
-  (async () => {
-    await loadTeacherUploadedVideos();
-  })();
 </script>
 </body>
 </html>
