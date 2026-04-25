@@ -2,11 +2,19 @@
   "name": "learnix",
   "version": "2.0.0",
   "description": "Learnix - Modern Remote Learning Platform",
-  "main": "src/server.js",
+  "main": "electron/main.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "npm run start:web",
     "dev": "node src/server.js",
-    "db:check": "node scripts/db-check.js"
+    "db:check": "node scripts/db-check.js",
+    "start:web": "node src/server.js",
+    "desktop:dev": "electron .",
+    "desktop:build": "electron-builder --dir",
+    "desktop:dist": "electron-builder",
+    "mobile:sync": "npx cap sync",
+    "mobile:android": "npx cap open android",
+    "mobile:ios": "npx cap open ios",
+    "app:package": "bash scripts/package-app-shell.sh"
   },
   "keywords": [],
   "author": "Yash Chaphekar",
@@ -19,6 +27,43 @@
     "express-session": "^1.19.0",
     "multer": "^2.1.1",
     "mysql2": "^3.17.1",
-    "nodemailer": "^8.0.1"
+    "nodemailer": "^8.0.1",
+    "@capacitor/core": "^7.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.1.0",
+    "@capacitor/android": "^7.1.0",
+    "@capacitor/ios": "^7.1.0",
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.learnix.app",
+    "productName": "Learnix",
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "public/**/*",
+      "package.json",
+      ".env.example"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }
