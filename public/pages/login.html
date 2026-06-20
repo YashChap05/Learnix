@@ -49,6 +49,11 @@
 
       <select name="branch" id="loginBranch" style="display:none;">
         <option value="" disabled selected>Select Branch</option>
+        <option value="Computer Science">Computer Science</option>
+        <option value="Data Science">Data Science</option>
+        <option value="Information Technology">Information Technology</option>
+        <option value="Electronics">Electronics</option>
+        <option value="Mechanical">Mechanical</option>
       </select>
 
       <button type="submit" class="get-started-free">Log In</button>
@@ -70,10 +75,27 @@
   const loginError = document.getElementById('loginError');
   const loginRole = document.getElementById('loginRole');
   const loginBranch = document.getElementById('loginBranch');
+  const defaultBranches = [
+    'Computer Science',
+    'Data Science',
+    'Information Technology',
+    'Electronics',
+    'Mechanical'
+  ];
   const params = new URLSearchParams(window.location.search);
   if (params.get('error')) {
     loginError.textContent = decodeURIComponent(params.get('error'));
     loginError.style.display = 'block';
+  }
+
+  function populateBranchOptions(branches) {
+    loginBranch.innerHTML = '<option value="" disabled selected>Select Branch</option>';
+    branches.forEach((branchName) => {
+      const option = document.createElement('option');
+      option.value = branchName;
+      option.textContent = branchName;
+      loginBranch.appendChild(option);
+    });
   }
 
   function syncBranchVisibility() {
@@ -99,14 +121,21 @@
   loginRole.addEventListener('change', syncBranchVisibility);
   syncBranchVisibility();
 
-  fetch('/api/departments').then((r) => r.json()).then((data) => {
-    (data.departments || []).forEach((dept) => {
-      const option = document.createElement('option');
-      option.value = dept.dept_name;
-      option.textContent = dept.dept_name;
-      loginBranch.appendChild(option);
+  fetch('/api/departments')
+    .then((r) => r.ok ? r.json() : Promise.reject(new Error('Failed to load branches')))
+    .then((data) => {
+      const branches = (data.departments || [])
+        .map((dept) => dept.dept_name)
+        .filter(Boolean);
+      populateBranchOptions(branches.length ? branches : defaultBranches);
+    })
+    .catch(() => {
+      populateBranchOptions(defaultBranches);
+      if (loginRole.value === 'student' || loginRole.value === 'teacher') {
+        loginError.textContent = 'Using default branch list because the database branch list is unavailable.';
+        loginError.style.display = 'block';
+      }
     });
-  }).catch(() => {});
 </script>
 </body>
 </html>

@@ -45,6 +45,11 @@
         <input type="email" name="email" placeholder="Email Address" required>
         <select name="branch" id="studentBranch" required>
           <option value="" disabled selected>Select Branch</option>
+          <option value="Computer Science">Computer Science</option>
+          <option value="Data Science">Data Science</option>
+          <option value="Information Technology">Information Technology</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Mechanical">Mechanical</option>
         </select>
         <input type="text" name="university_name" id="studentUniversity" placeholder="University" list="universityList" required>
       </div>
@@ -54,6 +59,11 @@
         <input type="email" data-name="email" placeholder="Email Address">
         <select data-name="branch" id="teacherBranch">
           <option value="" disabled selected>Select Branch</option>
+          <option value="Computer Science">Computer Science</option>
+          <option value="Data Science">Data Science</option>
+          <option value="Information Technology">Information Technology</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Mechanical">Mechanical</option>
         </select>
         <input type="text" data-name="university_name" id="teacherUniversity" placeholder="University" list="universityList">
         <input type="text" data-name="subject" placeholder="Subject (Optional)">
@@ -86,6 +96,13 @@
   const roleInput = document.getElementById('roleInput');
   const tabs = [...document.querySelectorAll('.signup-tab')];
   const panels = [...document.querySelectorAll('.signup-panel')];
+  const defaultBranches = [
+    'Computer Science',
+    'Data Science',
+    'Information Technology',
+    'Electronics',
+    'Mechanical'
+  ];
 
   function syncPanelFields(activeRole) {
     panels.forEach((panel) => {
@@ -117,21 +134,37 @@
     tab.addEventListener('click', () => setRole(tab.dataset.role));
   });
 
-  fetch('/api/departments').then((r) => r.json()).then((data) => {
+  function populateBranchOptions(branches) {
     const studentBranch = document.getElementById('studentBranch');
     const teacherBranch = document.getElementById('teacherBranch');
-    (data.departments || []).forEach((dept) => {
+
+    studentBranch.innerHTML = '<option value="" disabled selected>Select Branch</option>';
+    teacherBranch.innerHTML = '<option value="" disabled selected>Select Branch</option>';
+
+    branches.forEach((branchName) => {
       const studentOption = document.createElement('option');
-      studentOption.value = dept.dept_name;
-      studentOption.textContent = dept.dept_name;
+      studentOption.value = branchName;
+      studentOption.textContent = branchName;
       studentBranch.appendChild(studentOption);
 
       const teacherOption = document.createElement('option');
-      teacherOption.value = dept.dept_name;
-      teacherOption.textContent = dept.dept_name;
+      teacherOption.value = branchName;
+      teacherOption.textContent = branchName;
       teacherBranch.appendChild(teacherOption);
     });
-  }).catch(() => {});
+  }
+
+  fetch('/api/departments')
+    .then((r) => r.ok ? r.json() : Promise.reject(new Error('Failed to load branches')))
+    .then((data) => {
+      const branches = (data.departments || [])
+        .map((dept) => dept.dept_name)
+        .filter(Boolean);
+      populateBranchOptions(branches.length ? branches : defaultBranches);
+    })
+    .catch(() => {
+      populateBranchOptions(defaultBranches);
+    });
 
   fetch('/api/universities').then((r) => r.json()).then((data) => {
     const universityList = document.getElementById('universityList');
