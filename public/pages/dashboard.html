@@ -6,22 +6,191 @@
   <title>Dashboard | Learnix</title>
   <link rel="stylesheet" href="/assets/css/main.css">
   <style>
-    .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 18px; }
-    .admin-card, .admin-item { background: #fff; border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 20px; padding: 20px; box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08); }
-    .admin-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 18px; }
-    .admin-list { display: grid; gap: 14px; }
-    .admin-item-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
-    .admin-item-head h4 { margin: 0; font-size: 0.98rem; }
-    .admin-item-head p { margin: 4px 0 0; font-size: 0.84rem; color: var(--text-muted); }
-    .admin-meta { display: grid; gap: 8px; color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px; }
-    .admin-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-    .admin-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 18px 0; }
-    .admin-summary-card { background: linear-gradient(135deg, #0f172a, #1d4ed8); color: #fff; border-radius: 18px; padding: 18px; }
-    .admin-summary-card span { display: block; font-size: 0.82rem; opacity: 0.85; margin-bottom: 8px; }
-    .admin-summary-card strong { font-size: 1.7rem; }
-    .admin-section-block { margin-top: 30px; }
+    .admin-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 14px;
+      margin: 20px 0 28px;
+    }
+    .admin-summary-card {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(145deg, #0f172a, #1e3a8a 65%, #2563eb);
+      color: #fff;
+      border-radius: 22px;
+      padding: 20px;
+      min-height: 126px;
+      box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+    }
+    .admin-summary-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -18px -36px auto;
+      width: 96px;
+      height: 96px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .admin-summary-card span {
+      display: block;
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      opacity: 0.78;
+      margin-bottom: 12px;
+    }
+    .admin-summary-card strong {
+      position: relative;
+      z-index: 1;
+      font-size: 2rem;
+      line-height: 1;
+    }
+    .admin-summary-card small {
+      position: relative;
+      z-index: 1;
+      display: block;
+      margin-top: 12px;
+      font-size: 0.88rem;
+      color: rgba(255, 255, 255, 0.82);
+    }
+    .admin-layout {
+      display: grid;
+      gap: 18px;
+    }
+    .admin-section-block {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 28px;
+      padding: 22px;
+      box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(10px);
+    }
+    .admin-section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .admin-section-copy {
+      max-width: 720px;
+    }
+    .admin-section-copy h3 {
+      margin: 0 0 8px;
+      font-size: 1.15rem;
+      color: var(--text);
+    }
+    .admin-section-copy p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.93rem;
+      line-height: 1.6;
+    }
+    .admin-section-badge {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(37, 99, 235, 0.14);
+      background: rgba(37, 99, 235, 0.08);
+      color: #1d4ed8;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .admin-toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 0 0 18px;
+    }
+    .admin-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .admin-item {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+    }
+    .admin-item-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .admin-item-head h4 {
+      margin: 0;
+      font-size: 1.02rem;
+      color: var(--text);
+    }
+    .admin-item-head p {
+      margin: 5px 0 0;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      word-break: break-word;
+    }
+    .admin-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .admin-meta span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      color: #475569;
+      font-size: 0.84rem;
+      line-height: 1.4;
+    }
+    .admin-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: auto;
+    }
+    .admin-actions .schedule-demo,
+    .admin-actions .get-started-free {
+      min-width: 112px;
+      justify-content: center;
+    }
+    .admin-empty {
+      grid-column: 1 / -1;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+      border: 1px dashed rgba(148, 163, 184, 0.28);
+      border-radius: 22px;
+      padding: 28px;
+      text-align: center;
+    }
+    .admin-empty h3 {
+      margin: 0 0 8px;
+    }
+    .admin-empty p {
+      margin: 0;
+      color: var(--text-muted);
+    }
     @media (max-width: 720px) {
-      .admin-item-head, .admin-actions { flex-direction: column; }
+      .admin-section-head,
+      .admin-item-head,
+      .admin-actions {
+        flex-direction: column;
+      }
+      .admin-section-block {
+        padding: 18px;
+      }
+      .admin-list {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -224,11 +393,14 @@
 
     <div id="adminStatusMsg" class="status-msg" style="display:none;margin:0 0 16px;"></div>
     <div class="admin-summary" id="adminSummary"></div>
-
+    <div class="admin-layout">
     <div class="admin-section-block">
-      <div class="subject-panel">
-        <h3 style="margin:0 0 10px;">Universities</h3>
-        <p style="margin:0;color:var(--text-muted);">Add, update, and delete university accounts.</p>
+      <div class="admin-section-head">
+        <div class="admin-section-copy">
+          <h3>Universities</h3>
+          <p>Add, update, and delete university accounts.</p>
+        </div>
+        <div class="admin-section-badge" id="adminUniversityCount">0 records</div>
       </div>
       <div class="admin-toolbar">
         <button class="get-started-free" data-admin-create="university">Add University</button>
@@ -237,9 +409,12 @@
     </div>
 
     <div class="admin-section-block">
-      <div class="subject-panel">
-        <h3 style="margin:0 0 10px;">Teachers</h3>
-        <p style="margin:0;color:var(--text-muted);">Manage teacher accounts, departments, and subjects.</p>
+      <div class="admin-section-head">
+        <div class="admin-section-copy">
+          <h3>Teachers</h3>
+          <p>Manage teacher accounts, departments, and subjects.</p>
+        </div>
+        <div class="admin-section-badge" id="adminTeacherCount">0 records</div>
       </div>
       <div class="admin-toolbar">
         <button class="get-started-free" data-admin-create="teacher">Add Teacher</button>
@@ -248,9 +423,12 @@
     </div>
 
     <div class="admin-section-block">
-      <div class="subject-panel">
-        <h3 style="margin:0 0 10px;">Students</h3>
-        <p style="margin:0;color:var(--text-muted);">Manage student accounts across all universities.</p>
+      <div class="admin-section-head">
+        <div class="admin-section-copy">
+          <h3>Students</h3>
+          <p>Manage student accounts across all universities.</p>
+        </div>
+        <div class="admin-section-badge" id="adminStudentCountBadge">0 records</div>
       </div>
       <div class="admin-toolbar">
         <button class="get-started-free" data-admin-create="student">Add Student</button>
@@ -259,9 +437,12 @@
     </div>
 
     <div class="admin-section-block">
-      <div class="subject-panel">
-        <h3 style="margin:0 0 10px;">Courses</h3>
-        <p style="margin:0;color:var(--text-muted);">Control the course catalog and teacher assignments.</p>
+      <div class="admin-section-head">
+        <div class="admin-section-copy">
+          <h3>Courses</h3>
+          <p>Control the course catalog and teacher assignments.</p>
+        </div>
+        <div class="admin-section-badge" id="adminCourseCountBadge">0 records</div>
       </div>
       <div class="admin-toolbar">
         <button class="get-started-free" data-admin-create="course">Add Course</button>
@@ -270,9 +451,12 @@
     </div>
 
     <div class="admin-section-block">
-      <div class="subject-panel">
-        <h3 style="margin:0 0 10px;">Enrollments</h3>
-        <p style="margin:0;color:var(--text-muted);">Review and manage the courses students have taken.</p>
+      <div class="admin-section-head">
+        <div class="admin-section-copy">
+          <h3>Enrollments</h3>
+          <p>Review and manage the courses students have taken.</p>
+        </div>
+        <div class="admin-section-badge" id="adminEnrollmentCountBadge">0 records</div>
       </div>
       <div class="admin-toolbar">
         <button class="get-started-free" data-admin-create="enrollment">Add Enrollment</button>
@@ -281,11 +465,15 @@
     </div>
 
     <div class="admin-section-block">
-      <div class="subject-panel">
-        <h3 style="margin:0 0 10px;">Uploaded Files</h3>
-        <p style="margin:0;color:var(--text-muted);">Review every teacher-uploaded file and remove bad uploads.</p>
+      <div class="admin-section-head">
+        <div class="admin-section-copy">
+          <h3>Uploaded Files</h3>
+          <p>Review every teacher-uploaded file and remove bad uploads.</p>
+        </div>
+        <div class="admin-section-badge" id="adminUploadCountBadge">0 records</div>
       </div>
       <div class="admin-list" id="adminUploadList"></div>
+    </div>
     </div>
   </section>
 </main>
@@ -917,16 +1105,17 @@
   function renderAdminSummary() {
     const summary = adminState.summary || {};
     document.getElementById('adminSummary').innerHTML = [
-      ['Universities', summary.total_universities ?? 0],
-      ['Teachers', summary.total_teachers ?? 0],
-      ['Students', summary.total_students ?? 0],
-      ['Courses', summary.total_courses ?? 0],
-      ['Enrollments', summary.total_enrollments ?? 0],
-      ['Uploads', summary.total_uploads ?? 0]
-    ].map(([label, value]) => `
+      ['Universities', summary.total_universities ?? 0, 'Registered institutions'],
+      ['Teachers', summary.total_teachers ?? 0, 'Active faculty accounts'],
+      ['Students', summary.total_students ?? 0, 'Student records tracked'],
+      ['Courses', summary.total_courses ?? 0, 'Courses in catalog'],
+      ['Enrollments', summary.total_enrollments ?? 0, 'Current course registrations'],
+      ['Uploads', summary.total_uploads ?? 0, 'Teacher video files attached']
+    ].map(([label, value, hint]) => `
       <div class="admin-summary-card">
         <span>${escapeHtml(label)}</span>
         <strong>${value}</strong>
+        <small>${escapeHtml(hint)}</small>
       </div>
     `).join('');
   }
@@ -935,7 +1124,7 @@
     const el = document.getElementById(targetId);
     if (!el) return;
     if (!items || items.length === 0) {
-      el.innerHTML = `<div class="performance-empty"><h3>${escapeHtml(emptyTitle)}</h3><p>${escapeHtml(emptyText)}</p></div>`;
+      el.innerHTML = `<div class="admin-empty"><h3>${escapeHtml(emptyTitle)}</h3><p>${escapeHtml(emptyText)}</p></div>`;
       return;
     }
     el.innerHTML = items.map(renderer).join('');
@@ -943,6 +1132,12 @@
 
   function renderAdminDashboard() {
     renderAdminSummary();
+    document.getElementById('adminUniversityCount').textContent = `${(adminState.universities || []).length} records`;
+    document.getElementById('adminTeacherCount').textContent = `${(adminState.teachers || []).length} records`;
+    document.getElementById('adminStudentCountBadge').textContent = `${(adminState.students || []).length} records`;
+    document.getElementById('adminCourseCountBadge').textContent = `${(adminState.courses || []).length} records`;
+    document.getElementById('adminEnrollmentCountBadge').textContent = `${(adminState.enrollments || []).length} records`;
+    document.getElementById('adminUploadCountBadge').textContent = `${(adminState.uploads || []).length} records`;
 
     renderAdminList('adminUniversityList', adminState.universities, 'No universities yet', 'Create the first university from the button above.', (item) => `
       <article class="admin-item">
